@@ -1,0 +1,115 @@
+/* ============================================
+   Eisenhower Matrix Styles
+   ============================================ */
+
+.eisenhower-view {
+  padding: var(--space-4);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.eisenhower-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+  flex-shrink: 0;
+}
+
+.eisenhower-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: var(--space-3);
+  flex: 1;
+  overflow: hidden;
+}
+
+.eisenhower-quadrant {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.eisenhower-quadrant-header {
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.eisenhower-quadrant-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  flex: 1;
+}
+
+.eisenhower-quadrant-count {
+  font-size: var(--fs-xs);
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  font-weight: var(--fw-semibold);
+}
+
+.eisenhower-quadrant-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  transition: background var(--transition-fast);
+}
+
+.eisenhower-quadrant-body.drag-over {
+  background: var(--primary-alpha);
+}
+
+.eisenhower-card {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  cursor: grab;
+  transition: all var(--transition-fast);
+}
+
+.eisenhower-card:hover {
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+.eisenhower-card.dragging {
+  opacity: 0.5;
+}
+
+.eisenhower-card-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.eisenhower-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .eisenhower-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+}

@@ -1,0 +1,391 @@
+/* ============================================
+   TASK ITEMS & TASK LIST STYLES
+   ============================================ */
+
+/* ── Quick Add ── */
+.quick-add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-6);
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-primary);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.quick-add-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.quick-add-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: var(--fs-md);
+  color: var(--text-primary);
+  outline: none;
+  padding: var(--space-1) 0;
+}
+
+.quick-add-input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.quick-add-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.quick-add:focus-within .quick-add-actions {
+  opacity: 1;
+}
+
+/* ── Task Section ── */
+.task-section {
+  margin-bottom: var(--space-2);
+}
+
+.task-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-6);
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 44px;
+  background: var(--bg-primary);
+  z-index: 4;
+}
+
+.task-section-chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+  transition: transform var(--transition-fast);
+}
+
+.task-section-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.task-section-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.task-section-count {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+
+/* ── Task Item ── */
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-6);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border-bottom: 1px solid var(--border-light);
+  position: relative;
+  animation: fadeIn 0.2s ease;
+}
+
+.task-item:hover {
+  background: var(--bg-hover);
+}
+
+.task-item.selected {
+  background: var(--bg-active);
+}
+
+.task-item.completed .task-item-title {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+
+.task-item.completed .task-item-meta {
+  opacity: 0.5;
+}
+
+.task-item-checkbox {
+  margin-top: 2px;
+}
+
+.task-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-item-title {
+  font-size: var(--fs-md);
+  color: var(--text-primary);
+  line-height: var(--lh-tight);
+  word-break: break-word;
+}
+
+.task-item-desc {
+  font-size: var(--fs-sm);
+  color: var(--text-tertiary);
+  margin-top: var(--space-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.task-item-due {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+}
+
+.task-item-due.overdue {
+  color: var(--accent-red);
+  background: rgba(255, 77, 79, 0.08);
+}
+
+.task-item-due.today {
+  color: var(--primary);
+  background: var(--primary-alpha);
+}
+
+.task-item-due.tomorrow {
+  color: var(--accent-orange);
+  background: rgba(255, 140, 34, 0.08);
+}
+
+.task-item-due svg {
+  width: 12px;
+  height: 12px;
+}
+
+.task-item-tags {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.task-item-tag {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+}
+
+.task-item-priority {
+  width: 4px;
+  height: 36px;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 0 2px 2px 0;
+}
+
+.task-item-actions {
+  display: flex;
+  gap: var(--space-1);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.task-item:hover .task-item-actions {
+  opacity: 1;
+}
+
+.task-item-subtask-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+
+.task-item-subtask-count svg {
+  width: 12px;
+  height: 12px;
+}
+
+.task-item-list-name {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.task-item-list-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+}
+
+/* ── Drag state ── */
+.task-item.dragging {
+  opacity: 0.5;
+  background: var(--bg-tertiary);
+}
+
+.task-item.drag-over {
+  border-top: 2px solid var(--primary);
+}
+
+/* ── Detail Panel Fields ── */
+.detail-field {
+  margin-bottom: var(--space-4);
+}
+
+.detail-field-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.detail-field-label svg {
+  width: 14px;
+  height: 14px;
+}
+
+.detail-title-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  outline: none;
+  padding: var(--space-1) 0;
+  line-height: var(--lh-tight);
+}
+
+.detail-desc-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  outline: none;
+  padding: var(--space-1) 0;
+  min-height: 60px;
+  resize: none;
+  line-height: var(--lh-normal);
+}
+
+/* ── Subtasks in Detail ── */
+.subtask-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.subtask-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.subtask-item:hover {
+  background: var(--bg-hover);
+  padding: var(--space-1) var(--space-2);
+  margin: 0 calc(-1 * var(--space-2));
+}
+
+.subtask-checkbox {
+  width: 16px;
+  height: 16px;
+  border-width: 1.5px;
+}
+
+.subtask-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: var(--fs-base);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.subtask-item.completed .subtask-input {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+
+.subtask-delete {
+  opacity: 0;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.subtask-item:hover .subtask-delete {
+  opacity: 1;
+}
+
+.subtask-delete:hover {
+  color: var(--accent-red);
+}
+
+.subtask-add-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-size: var(--fs-base);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.subtask-add-btn:hover {
+  color: var(--primary);
+}
+
+.subtask-add-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Subtask progress ── */
+.subtask-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.subtask-progress-text {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="TaskFlow — Gerenciador de tarefas completo, inspirado no TickTick. Organize tarefas, hábitos e foco sem precisar de internet." />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none';" />
+  <title>TaskFlow — Gerenciador de Tarefas</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/task.css" />
+  <link rel="stylesheet" href="css/calendar.css" />
+  <link rel="stylesheet" href="css/kanban.css" />
+  <link rel="stylesheet" href="css/pomodoro.css" />
+  <link rel="stylesheet" href="css/habits.css" />
+  <link rel="stylesheet" href="css/stats.css" />
+  <link rel="stylesheet" href="css/eisenhower.css" />
+
+  <!-- Favicon (inline SVG) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>✅</text></svg>" />
+
+  <style>
+    /* Loading screen */
+    .app-loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      background: var(--bg-primary);
+      z-index: 9999;
+      transition: opacity 0.3s ease;
+    }
+
+    .app-loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .loading-text {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      color: var(--text-tertiary);
+    }
+
+    /* Icon utility */
+    .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .icon svg {
+      width: 1em;
+      height: 1em;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading screen -->
+  <div class="app-loading" id="app-loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Carregando TaskFlow...</div>
+  </div>
+
+  <!-- Main App Shell -->
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Rendered by sidebar.js -->
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Header -->
+      <header class="main-header" id="main-header">
+        <!-- Rendered by header.js -->
+      </header>
+
+      <!-- Content + Detail wrapper -->
+      <div class="content-wrapper">
+        <!-- Task list / Calendar / Kanban / etc -->
+        <div class="main-content" id="task-list-content">
+          <!-- Rendered by view components -->
+        </div>
+
+        <!-- Task Detail Panel -->
+        <aside class="detail-panel" id="detail-panel">
+          <!-- Rendered by taskDetail.js -->
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Overlay -->
+  <div class="modal-overlay" id="modal-overlay">
+    <!-- Rendered by modal.js -->
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- App Script -->
+  <script type="module">
+    import './js/app.js';
+
+    // Hide loading screen once app is ready
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const loader = document.getElementById('app-loading');
+        if (loader) {
+          loader.classList.add('hidden');
+          setTimeout(() => loader.remove(), 300);
+        }
+      }, 500);
+    });
+  </script>
+</body>
+</html>

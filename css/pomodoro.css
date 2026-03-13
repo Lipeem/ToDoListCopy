@@ -1,0 +1,203 @@
+/* ============================================
+   POMODORO TIMER
+   ============================================ */
+
+.pomodoro-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--space-6);
+  gap: var(--space-6);
+}
+
+.pomodoro-tabs {
+  display: flex;
+  gap: var(--space-2);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  padding: 3px;
+}
+
+.pomodoro-tab {
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-full);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pomodoro-tab.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.pomodoro-timer {
+  position: relative;
+  width: 280px;
+  height: 280px;
+}
+
+.pomodoro-timer-circle {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  position: relative;
+}
+
+.pomodoro-timer-circle svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.pomodoro-timer-circle .timer-bg {
+  fill: none;
+  stroke: var(--bg-tertiary);
+  stroke-width: 6;
+}
+
+.pomodoro-timer-circle .timer-progress {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.pomodoro-timer-circle .timer-progress.break {
+  stroke: var(--accent-green);
+}
+
+.pomodoro-timer-display {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.pomodoro-time {
+  font-size: 3.5rem;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.pomodoro-session-label {
+  font-size: var(--fs-sm);
+  color: var(--text-tertiary);
+  margin-top: var(--space-1);
+}
+
+.pomodoro-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.pomodoro-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.pomodoro-btn-primary {
+  background: var(--primary);
+  color: var(--text-inverse);
+  box-shadow: 0 4px 12px rgba(71, 114, 250, 0.3);
+}
+
+.pomodoro-btn-primary:hover {
+  background: var(--primary-hover);
+  transform: scale(1.05);
+}
+
+.pomodoro-btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.pomodoro-btn-secondary:hover {
+  background: var(--bg-hover);
+}
+
+.pomodoro-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.pomodoro-task-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--bg-tertiary);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pomodoro-task-link:hover {
+  background: var(--bg-hover);
+}
+
+.pomodoro-sessions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.pomodoro-session-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--bg-tertiary);
+  transition: background var(--transition-fast);
+}
+
+.pomodoro-session-dot.completed {
+  background: var(--primary);
+}
+
+.pomodoro-session-dot.active {
+  background: var(--primary);
+  animation: pulse 2s infinite;
+}
+
+/* ── Pomodoro Stats ── */
+.pomodoro-stats {
+  display: flex;
+  gap: var(--space-6);
+  padding: var(--space-4);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  margin-top: var(--space-4);
+}
+
+.pomodoro-stat {
+  text-align: center;
+}
+
+.pomodoro-stat-value {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--primary);
+}
+
+.pomodoro-stat-label {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  margin-top: var(--space-1);
+}
