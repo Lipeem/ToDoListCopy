@@ -559,19 +559,36 @@ function bindModalEvents() {
       });
     } else if (state.modalOpen === 'editKanbanColumn' && state.modalData) {
       const { listId, column } = state.modalData;
-      const list = state.lists.find(l => l.id === listId);
-      if (list && list.kanbanColumns) {
-        list.kanbanColumns = list.kanbanColumns.filter(c => c.id !== column.id);
-        
-        // Move tasks to default 'todo' column if their column is deleted
-        const tasks = state.tasks.filter(t => t.listId === listId && t.kanbanStatus === column.id);
-        for (const task of tasks) {
+      if (listId === 'all') {
+        // Delete from all lists
+        for (const list of state.lists) {
+          if (list.kanbanColumns) {
+            list.kanbanColumns = list.kanbanColumns.filter(c => c.id !== column.id);
+            await dbUpdate('lists', list);
+          }
+        }
+        // Move affected tasks to 'todo'
+        const affectedTasks = state.tasks.filter(t => t.kanbanStatus === column.id);
+        for (const task of affectedTasks) {
           task.kanbanStatus = 'todo';
           await dbUpdate('tasks', task);
         }
-
-        await dbUpdate('lists', list);
         setState({ lists: await dbGetAll('lists'), tasks: await dbGetAll('tasks') });
+      } else {
+        const list = state.lists.find(l => l.id === listId);
+        if (list && list.kanbanColumns) {
+          list.kanbanColumns = list.kanbanColumns.filter(c => c.id !== column.id);
+
+          // Move tasks to default 'todo' column if their column is deleted
+          const tasks = state.tasks.filter(t => t.listId === listId && t.kanbanStatus === column.id);
+          for (const task of tasks) {
+            task.kanbanStatus = 'todo';
+            await dbUpdate('tasks', task);
+          }
+
+          await dbUpdate('lists', list);
+          setState({ lists: await dbGetAll('lists'), tasks: await dbGetAll('tasks') });
+        }
       }
     }
     closeModal();
@@ -595,12 +612,36 @@ function bindModalEvents() {
           state.modalData.type = type;
           await dbUpdate('lists', state.modalData);
         } else {
+          // Inherit global columns: columns that appear in ALL existing user lists
+          let inheritedColumns = null;
+          const userLists = state.lists.filter(l => !l.isDefault);
+          if (userLists.length > 0) {
+            // Find columns present in ALL user lists
+            const firstListCols = (userLists[0].kanbanColumns || []).map(c => c.id);
+            const globalCols = firstListCols.filter(colId =>
+              userLists.every(l => (l.kanbanColumns || []).some(c => c.id === colId))
+            );
+            if (globalCols.length > 0) {
+              // Build column objects from first list
+              inheritedColumns = (userLists[0].kanbanColumns || [])
+                .filter(c => globalCols.includes(c.id))
+                .map(c => ({ ...c }));
+            }
+          }
+          if (!inheritedColumns) {
+            inheritedColumns = [
+              { id: 'todo', title: 'A Fazer', color: '#6b7280', order: 0 },
+              { id: 'doing', title: 'Em Progresso', color: '#4772fa', order: 1 },
+              { id: 'done', title: 'Concluído', color: '#52c41a', order: 2 }
+            ];
+          }
           await dbAdd('lists', {
             name,
             color: selectedColor,
             emoji: selectedEmoji,
             folderId,
             type,
+            kanbanColumns: inheritedColumns,
             sortOrder: state.lists.length,
             isDefault: false
           });
@@ -709,31 +750,67 @@ function bindModalEvents() {
       case 'editKanbanColumn': {
         const title = document.getElementById('modal-kanban-col-name')?.value.trim();
         if (!title) return;
+        if (!state.modalData) return;
         const { listId, column } = state.modalData;
-        const list = state.lists.find(l => l.id === listId);
-        
-        if (list) {
-          if (!list.kanbanColumns) {
-            list.kanbanColumns = [];
-          }
-          if (state.modalOpen === 'editKanbanColumn') {
-            const colIndex = list.kanbanColumns.findIndex(c => c.id === column.id);
-            if (colIndex >= 0) {
-              list.kanbanColumns[colIndex].title = title;
-              list.kanbanColumns[colIndex].color = selectedColor;
+
+        if (listId === 'all') {
+          // Global operation: add/edit column across ALL lists
+          const newId = state.modalOpen === 'addKanbanColumn'
+            ? title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') + '-' + Date.now()
+            : column.id;
+
+          for (const list of state.lists) {
+            if (!list.kanbanColumns) {
+              list.kanbanColumns = [
+                { id: 'todo', title: 'A Fazer', color: '#6b7280', order: 0 },
+                { id: 'doing', title: 'Em Progresso', color: '#4772fa', order: 1 },
+                { id: 'done', title: 'Concluído', color: '#52c41a', order: 2 }
+              ];
             }
-          } else {
-            const newId = title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') + '-' + Date.now();
-            list.kanbanColumns.push({
-              id: newId,
-              title,
-              color: selectedColor,
-              order: list.kanbanColumns.length
-            });
+            if (state.modalOpen === 'editKanbanColumn') {
+              const colIndex = list.kanbanColumns.findIndex(c => c.id === newId);
+              if (colIndex >= 0) {
+                list.kanbanColumns[colIndex].title = title;
+                list.kanbanColumns[colIndex].color = selectedColor;
+              }
+            } else {
+              // Add new column if not already present
+              if (!list.kanbanColumns.find(c => c.id === newId)) {
+                list.kanbanColumns.push({
+                  id: newId,
+                  title,
+                  color: selectedColor,
+                  order: list.kanbanColumns.length
+                });
+              }
+            }
+            await dbUpdate('lists', list);
           }
-          await dbUpdate('lists', list);
-          setState({ lists: await dbGetAll('lists') });
+        } else {
+          const list = state.lists.find(l => l.id === listId);
+          if (list) {
+            if (!list.kanbanColumns) {
+              list.kanbanColumns = [];
+            }
+            if (state.modalOpen === 'editKanbanColumn') {
+              const colIndex = list.kanbanColumns.findIndex(c => c.id === column.id);
+              if (colIndex >= 0) {
+                list.kanbanColumns[colIndex].title = title;
+                list.kanbanColumns[colIndex].color = selectedColor;
+              }
+            } else {
+              const newId = title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') + '-' + Date.now();
+              list.kanbanColumns.push({
+                id: newId,
+                title,
+                color: selectedColor,
+                order: list.kanbanColumns.length
+              });
+            }
+            await dbUpdate('lists', list);
+          }
         }
+        setState({ lists: await dbGetAll('lists') });
         break;
       }
     }

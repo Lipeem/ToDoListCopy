@@ -7,8 +7,7 @@ import { dbUpdate, dbAdd, dbGetAll, dbGetByIndex } from '../db.js';
 import { icon, escapeHtml } from '../utils/icons.js';
 import { formatDate, addDays, today } from '../utils/date.js';
 
-// Module-level state for description toggle
-let descriptionMode = 'edit';
+// (Description mode toggle removed — always shows textarea)
 
 // Renders basic Markdown to safe HTML
 function renderMarkdown(text) {
@@ -80,17 +79,8 @@ function renderTaskDetail() {
 
       <!-- Description -->
       <div class="detail-field">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-1)">
-          <div class="detail-field-label" style="margin-bottom:0">${icon('description')} Descrição</div>
-          <div style="display:flex;gap:4px">
-            <button id="desc-mode-edit" class="btn btn-sm ${descriptionMode === 'edit' ? 'btn-primary' : 'btn-secondary'}" style="padding:2px 8px;font-size:11px">✏️ Editar</button>
-            <button id="desc-mode-preview" class="btn btn-sm ${descriptionMode === 'preview' ? 'btn-primary' : 'btn-secondary'}" style="padding:2px 8px;font-size:11px">👁 Preview</button>
-          </div>
-        </div>
-        ${descriptionMode === 'edit'
-          ? `<textarea class="detail-desc-input" id="detail-desc" placeholder="Adicionar descrição... (suporta **negrito**, *itálico*, \`código\`, ## Título, - lista)">${escapeHtml(task.description || '')}</textarea>`
-          : `<div class="detail-desc-preview" id="detail-desc-preview">${renderMarkdown(task.description || '') || '<span style="color:var(--text-tertiary);font-size:var(--fs-sm)">Sem descrição</span>'}</div>`
-        }
+        <div class="detail-field-label">${icon('description')} Descrição</div>
+        <textarea class="detail-desc-input" id="detail-desc" placeholder="Adicionar descrição...">${escapeHtml(task.description || '')}</textarea>
       </div>
 
       <!-- List -->
@@ -225,20 +215,6 @@ function bindDetailEvents(task) {
     setState({ detailOpen: false, selectedTaskId: null });
   });
 
-  // Description mode toggle
-  document.getElementById('desc-mode-edit')?.addEventListener('click', () => {
-    if (descriptionMode !== 'edit') {
-      descriptionMode = 'edit';
-      renderTaskDetail();
-    }
-  });
-  document.getElementById('desc-mode-preview')?.addEventListener('click', () => {
-    if (descriptionMode !== 'preview') {
-      descriptionMode = 'preview';
-      renderTaskDetail();
-    }
-  });
-
   // Duplicate task
   document.getElementById('detail-duplicate')?.addEventListener('click', async () => {
     const newTask = {
@@ -291,14 +267,21 @@ function bindDetailEvents(task) {
     await saveTask(task);
   });
 
-  // Description: update in memory while typing, save to DB on blur
-  document.getElementById('detail-desc')?.addEventListener('input', (e) => {
-    task.description = e.target.value;
-  });
-  document.getElementById('detail-desc')?.addEventListener('blur', async (e) => {
-    task.description = e.target.value;
-    await saveTask(task);
-  });
+  // Description: auto-grow + update in memory while typing, save to DB on blur
+  const descEl = document.getElementById('detail-desc');
+  if (descEl) {
+    descEl.style.height = 'auto';
+    descEl.style.height = descEl.scrollHeight + 'px';
+    descEl.addEventListener('input', (e) => {
+      task.description = e.target.value;
+      descEl.style.height = 'auto';
+      descEl.style.height = descEl.scrollHeight + 'px';
+    });
+    descEl.addEventListener('blur', async (e) => {
+      task.description = e.target.value;
+      await saveTask(task);
+    });
+  }
 
   // List
   document.getElementById('detail-list')?.addEventListener('change', async (e) => {

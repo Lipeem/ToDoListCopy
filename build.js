@@ -8,7 +8,8 @@ const BASE = __dirname;
 const cssFiles = [
   'css/variables.css', 'css/base.css', 'css/layout.css', 'css/components.css',
   'css/task.css', 'css/calendar.css', 'css/kanban.css', 'css/pomodoro.css',
-  'css/habits.css', 'css/stats.css', 'css/eisenhower.css'
+  'css/habits.css', 'css/stats.css', 'css/eisenhower.css',
+  'css/search.css', 'css/floating.css'
 ];
 
 let allCSS = '';
@@ -35,6 +36,8 @@ const jsFiles = [
   'js/components/habits.js',
   'js/components/stats.js',
   'js/components/eisenhower.js',
+  'js/components/search.js',
+  'js/components/floatingWindow.js',
   'js/app.js',
 ];
 

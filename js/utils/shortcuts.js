@@ -13,6 +13,20 @@ function initShortcuts() {
       return;
     }
 
+    // Global search: Ctrl+F
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+      e.preventDefault();
+      setState({ searchOpen: true, searchQuery: '' });
+      return;
+    }
+
+    // Close search with Escape
+    if (e.key === 'Escape' && state.searchOpen) {
+      e.preventDefault();
+      setState({ searchOpen: false, searchQuery: '' });
+      return;
+    }
+
     // Ignore if typing in input/textarea
     const tag = e.target.tagName.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;

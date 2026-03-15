@@ -50,6 +50,10 @@ function getTasksForView() {
       tasks = tasks.filter(t => t.dueDate && isWithinDays(t.dueDate, 7));
       break;
     case 'all':
+      // Apply list filter if set
+      if (state.allListFilter && state.allListFilter !== 'all') {
+        tasks = tasks.filter(t => t.listId === state.allListFilter);
+      }
       break;
     case 'completed':
       return tasks.filter(t => t.isCompleted).sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
@@ -197,7 +201,22 @@ function renderTaskList() {
   }
   const isNotesList = currentList?.type === 'notes';
 
+  // Build list filter dropdown for "all" view
+  const allListFilterHtml = view === 'all' ? `
+    <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-6) 0 var(--space-6);">
+      <label style="font-size:var(--fs-xs);color:var(--text-tertiary);white-space:nowrap;">Filtrar por lista:</label>
+      <select id="all-list-filter" class="select" style="height:28px;font-size:var(--fs-xs);padding:0 6px;max-width:200px;">
+        <option value="all" ${(!state.allListFilter || state.allListFilter === 'all') ? 'selected' : ''}>Todas as listas</option>
+        <option value="inbox" ${state.allListFilter === 'inbox' ? 'selected' : ''}>📥 Caixa de Entrada</option>
+        ${state.lists.filter(l => !l.isDefault).map(l =>
+          `<option value="${l.id}" ${state.allListFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${escapeHtml(l.name)}</option>`
+        ).join('')}
+      </select>
+    </div>
+  ` : '';
+
   container.innerHTML = `
+    ${allListFilterHtml}
     <!-- Quick Add (hidden on completed view) -->
     ${view !== 'completed' ? `
     <div class="quick-add">
@@ -251,6 +270,11 @@ function renderTaskList() {
 }
 
 function bindTaskListEvents(targetListId) {
+  // All-view list filter
+  document.getElementById('all-list-filter')?.addEventListener('change', (e) => {
+    setState({ allListFilter: e.target.value });
+  });
+
   // Quick add
   const quickAddInput = document.getElementById('quick-add-input');
   if (quickAddInput) {
@@ -403,7 +427,7 @@ function setupTaskDragDrop() {
 function initTaskList() {
   subscribeMultiple([
     'currentView', 'tasks', 'lists', 'tags', 'selectedTaskId',
-    'searchQuery', 'filterTags', 'filterPriority', 'sortBy', 'sortDir'
+    'searchQuery', 'filterTags', 'filterPriority', 'sortBy', 'sortDir', 'allListFilter'
   ], () => {
     renderTaskList();
     if (state.detailOpen && state.selectedTaskId) {

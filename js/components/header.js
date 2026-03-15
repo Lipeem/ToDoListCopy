@@ -80,6 +80,9 @@ function renderHeader() {
         </div>
         <button class="header-btn" id="sort-btn" title="Ordenar">${icon('sort')}</button>
       ` : ''}
+      <button class="header-btn" id="search-open-btn" title="Buscar (Ctrl+F)">
+        ${icon('search')}
+      </button>
       <button class="header-btn" id="theme-toggle" title="${isDark ? 'Modo claro' : 'Modo escuro'}">
         ${isDark ? icon('sun') : icon('moon')}
       </button>
@@ -96,6 +99,11 @@ function bindHeaderEvents() {
   // Sidebar open (mobile)
   document.getElementById('sidebar-open-btn')?.addEventListener('click', () => {
     setState({ sidebarOpen: true });
+  });
+
+  // Search
+  document.getElementById('search-open-btn')?.addEventListener('click', () => {
+    setState({ searchOpen: true, searchQuery: '' });
   });
 
   // Theme toggle

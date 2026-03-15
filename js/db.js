@@ -215,7 +215,14 @@ async function exportData() {
   for (const storeName of Object.keys(STORES)) {
     data[storeName] = await dbGetAll(storeName);
   }
-  return JSON.stringify(data);
+  const jsonPayload = JSON.stringify(data);
+  // Generate SHA-256 checksum
+  const encoder = new TextEncoder();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(jsonPayload));
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  // Return JSON with integrity field
+  return JSON.stringify({ ...data, _integrity: 'sha256-' + hashHex });
 }
 
 // ── Import validation & sanitization ──
@@ -353,6 +360,24 @@ async function importData(jsonData) {
 
     if (typeof data !== 'object' || data === null || Array.isArray(data)) {
       throw new Error('JSON root must be an object');
+    }
+
+    // Check integrity if present
+    if (data._integrity) {
+      const storedHash = data._integrity;
+      const dataWithoutIntegrity = { ...data };
+      delete dataWithoutIntegrity._integrity;
+      const payload = JSON.stringify(dataWithoutIntegrity);
+      const encoder = new TextEncoder();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(payload));
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      const computedHash = 'sha256-' + hashHex;
+      if (computedHash !== storedHash) {
+        const proceed = confirm('⚠️ AVISO: Este arquivo foi modificado desde a exportação.\n\nO checksum de integridade não confere. O arquivo pode ter sido alterado manualmente.\n\nDeseja importar mesmo assim?');
+        if (!proceed) return false;
+      }
+      delete data._integrity; // remove before processing
     }
 
     // Phase 1: Validate ALL stores in memory — no DB writes yet

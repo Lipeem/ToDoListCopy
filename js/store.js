@@ -20,6 +20,7 @@ const state = {
   // UI state
   searchQuery: '',
   searchOpen: false,
+  searchFilter: 'all',        // all | pending | completed
   sortBy: 'sortOrder',        // sortOrder | dueDate | priority | title | createdAt
   sortDir: 'asc',
   filterTags: [],
@@ -30,6 +31,9 @@ const state = {
   calendarMode: 'month',      // month | week
   calendarListFilter: 'all',  // 'all' | 'inbox' | list id
   calendarTagFilter: '',      // '' = all tags, or a tagId
+
+  // All view
+  allListFilter: 'all',        // 'all' | 'inbox' | list id
 
   // Kanban
   kanbanListFilter: 'all',     // 'all' | 'inbox' | list id
@@ -43,6 +47,12 @@ const state = {
   pomodoroTimeLeft: 25 * 60,
   pomodoroSession: 0,
   pomodoroTaskId: null,
+
+  // Floating windows
+  floatingTask: false,
+  floatingPomodoro: false,
+  floatingTaskOpacity: 1.0,
+  floatingPomodoroOpacity: 1.0,
 
   // Modals
   modalOpen: null,             // null | 'addList' | 'addFolder' | 'addTask' | 'addHabit' | 'editList' | 'confirm' | 'addTag'

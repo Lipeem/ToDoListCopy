@@ -6,8 +6,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100%;
+  justify-content: flex-start;
+  min-height: 100%;
+  overflow-y: auto;
   padding: var(--space-6);
   gap: var(--space-6);
 }

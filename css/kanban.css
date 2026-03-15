@@ -158,3 +158,14 @@
   color: var(--primary);
   background: var(--primary-alpha);
 }
+
+/* Ghost column (tasks in column that doesn't exist in current list) */
+.kanban-col--ghost {
+  opacity: 0.5;
+  border: 2px dashed var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.kanban-col--ghost .kanban-column-header {
+  border-bottom: 1px dashed var(--border-color);
+}

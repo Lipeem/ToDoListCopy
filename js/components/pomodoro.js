@@ -56,6 +56,11 @@ function renderPomodoro() {
   container.innerHTML = `
     <div class="pomodoro-view">
 
+      <!-- Float button -->
+      <div style="width:100%;max-width:420px;margin:0 auto;display:flex;justify-content:flex-end;">
+        <button id="pomodoro-float-btn" class="btn btn-secondary btn-sm" title="Abrir em janela flutuante" style="font-size:13px;">⊡ Janela Flutuante</button>
+      </div>
+
       <!-- Task Focus Section -->
       <div style="width:100%;max-width:420px;margin:0 auto var(--space-3) auto;">
         ${focusedTask ? `
@@ -261,6 +266,11 @@ function bindPomodoroEvents() {
       pomodoroTaskSearch = '';
       setState({ pomodoroTaskId: taskId });
     });
+  });
+
+  // Float button
+  document.getElementById('pomodoro-float-btn')?.addEventListener('click', () => {
+    setState({ floatingPomodoro: true });
   });
 
   // Settings toggle

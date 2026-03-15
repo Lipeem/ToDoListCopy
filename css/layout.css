@@ -71,10 +71,18 @@
 .sidebar-search {
   padding: var(--space-2) var(--space-4);
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.sidebar-search-wrapper {
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
 }
 
 .sidebar-search-input {
   width: 100%;
+  box-sizing: border-box;
   height: 32px;
   padding: 0 var(--space-3) 0 var(--space-8);
   border-radius: var(--radius-md);
@@ -87,10 +95,6 @@
 .sidebar-search-input:focus {
   background: var(--bg-input);
   border-color: var(--border-focus);
-}
-
-.sidebar-search-wrapper {
-  position: relative;
 }
 
 .sidebar-search-wrapper svg {

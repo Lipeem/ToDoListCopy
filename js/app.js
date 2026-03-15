@@ -17,6 +17,8 @@ import { renderPomodoro, initPomodoro } from './components/pomodoro.js';
 import { renderHabits, initHabits } from './components/habits.js';
 import { renderStats, initStats } from './components/stats.js';
 import { renderEisenhower, initEisenhower } from './components/eisenhower.js';
+import { initSearch } from './components/search.js';
+import { initFloatingWindows } from './components/floatingWindow.js';
 
 async function init() {
   try {
@@ -51,6 +53,8 @@ async function init() {
     initHabits();
     initStats();
     initEisenhower();
+    initSearch();
+    initFloatingWindows();
     initShortcuts();
 
     // Initial render

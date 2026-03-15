@@ -294,8 +294,9 @@
   color: var(--text-secondary);
   outline: none;
   padding: var(--space-1) 0;
-  min-height: 60px;
-  resize: none;
+  min-height: 80px;
+  resize: vertical;
+  overflow-y: hidden;
   line-height: var(--lh-normal);
 }
 
