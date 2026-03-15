@@ -7,23 +7,36 @@ import { icon, escapeHtml } from '../utils/icons.js';
 import { formatTime } from '../utils/date.js';
 import { dbUpdate, dbGetAll } from '../db.js';
 
+// ── Draggable logic (document listeners added once per element) ──
+
 function makeDraggable(el, handle) {
-  let isDragging = false, startX, startY, origLeft, origTop;
-  handle.addEventListener('mousedown', e => {
-    isDragging = true;
-    startX = e.clientX; startY = e.clientY;
+  // Store drag state on the element to avoid duplicate document listeners
+  if (!el._drag) {
+    el._drag = { active: false, startX: 0, startY: 0, origLeft: 0, origTop: 0 };
+
+    document.addEventListener('mousemove', (e) => {
+      if (!el._drag.active) return;
+      el.style.left = (el._drag.origLeft + e.clientX - el._drag.startX) + 'px';
+      el.style.top = (el._drag.origTop + e.clientY - el._drag.startY) + 'px';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+    });
+
+    document.addEventListener('mouseup', () => {
+      el._drag.active = false;
+    });
+  }
+
+  // Handle mousedown is added to each new handle (old handle is destroyed by innerHTML)
+  handle.addEventListener('mousedown', (e) => {
+    el._drag.active = true;
+    el._drag.startX = e.clientX;
+    el._drag.startY = e.clientY;
     const rect = el.getBoundingClientRect();
-    origLeft = rect.left; origTop = rect.top;
+    el._drag.origLeft = rect.left;
+    el._drag.origTop = rect.top;
     e.preventDefault();
   });
-  document.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    el.style.left = (origLeft + e.clientX - startX) + 'px';
-    el.style.top = (origTop + e.clientY - startY) + 'px';
-    el.style.right = 'auto';
-    el.style.bottom = 'auto';
-  });
-  document.addEventListener('mouseup', () => { isDragging = false; });
 }
 
 // ── Floating Task Detail ──
@@ -53,11 +66,9 @@ function renderFloatingTask() {
     el.style.right = '24px';
     el.style.top = '80px';
     el.style.left = 'auto';
-    el.style.opacity = opacity;
     document.body.appendChild(el);
-  } else {
-    el.style.opacity = opacity;
   }
+  el.style.opacity = opacity;
 
   el.innerHTML = `
     <div class="floating-window-titlebar" id="floating-task-handle">
@@ -99,9 +110,7 @@ function renderFloatingTask() {
     </div>
   `;
 
-  const handle = el.querySelector('#floating-task-handle');
-  makeDraggable(el, handle);
-
+  makeDraggable(el, el.querySelector('#floating-task-handle'));
   bindFloatingTaskEvents(task, el);
 }
 
@@ -160,6 +169,8 @@ function bindFloatingTaskEvents(task, el) {
 }
 
 // ── Floating Pomodoro ──
+// No separate timer here — all timer logic is reactive in pomodoro.js
+// This component only renders state and dispatches commands via setState
 
 function renderFloatingPomodoro() {
   let el = document.getElementById('floating-pomodoro-window');
@@ -185,11 +196,9 @@ function renderFloatingPomodoro() {
     el.style.bottom = '24px';
     el.style.left = 'auto';
     el.style.top = 'auto';
-    el.style.opacity = opacity;
     document.body.appendChild(el);
-  } else {
-    el.style.opacity = opacity;
   }
+  el.style.opacity = opacity;
 
   el.innerHTML = `
     <div class="floating-window-titlebar" id="floating-pom-handle">
@@ -220,9 +229,7 @@ function renderFloatingPomodoro() {
     </div>
   `;
 
-  const handle = el.querySelector('#floating-pom-handle');
-  makeDraggable(el, handle);
-
+  makeDraggable(el, el.querySelector('#floating-pom-handle'));
   bindFloatingPomodoroEvents(el);
 }
 
@@ -235,23 +242,23 @@ function bindFloatingPomodoroEvents(el) {
     setState({ floatingPomodoro: false });
   });
 
+  // Play/Pause — just toggle state; pomodoro.js reactive subscriber handles the timer
   el.querySelector('#float-pom-toggle')?.addEventListener('click', () => {
     if (state.pomodoroState === 'running') {
       setState({ pomodoroState: 'paused' });
     } else {
       setState({ pomodoroState: 'running' });
-      // The pomodoro component manages its own timer interval
-      // We need to trigger it — dispatch a synthetic event via state
-      startFloatingTimer();
     }
   });
 
+  // Reset — dispatch command to pomodoro.js (properly resets time to current type duration)
   el.querySelector('#float-pom-reset')?.addEventListener('click', () => {
-    setState({ pomodoroState: 'idle' });
+    setState({ pomodoroCommand: 'reset' });
   });
 
+  // Skip — dispatch command to pomodoro.js (saves session, plays sound, advances phase)
   el.querySelector('#float-pom-skip')?.addEventListener('click', () => {
-    setState({ pomodoroState: 'idle', pomodoroTimeLeft: 0 });
+    setState({ pomodoroCommand: 'skip' });
   });
 
   el.querySelector('#float-pom-opacity')?.addEventListener('input', e => {
@@ -261,27 +268,10 @@ function bindFloatingPomodoroEvents(el) {
   });
 }
 
-// Manage timer for floating pomodoro (reuse same interval pattern)
-let floatTimerInterval = null;
-
-function startFloatingTimer() {
-  clearInterval(floatTimerInterval);
-  floatTimerInterval = setInterval(() => {
-    if (state.pomodoroState !== 'running') {
-      clearInterval(floatTimerInterval);
-      return;
-    }
-    if (state.pomodoroTimeLeft <= 0) {
-      clearInterval(floatTimerInterval);
-      setState({ pomodoroState: 'idle' });
-    } else {
-      setState({ pomodoroTimeLeft: state.pomodoroTimeLeft - 1 });
-    }
-  }, 1000);
-}
+// ── Init ──
 
 function initFloatingWindows() {
-  // Add float button to task detail panel (delegated via document since panel re-renders)
+  // Delegated click handlers for float buttons (they exist in other components' DOM)
   document.addEventListener('click', (e) => {
     if (e.target.closest('#detail-float-btn')) {
       const taskId = state.selectedTaskId;

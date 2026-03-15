@@ -202,34 +202,23 @@ async function loadPomodoroStats() {
 }
 
 function bindPomodoroEvents() {
-  // Toggle (start/pause)
-  document.getElementById('pom-toggle')?.addEventListener('click', async () => {
+  // Toggle (start/pause) — just set state, the reactive subscriber handles the interval
+  document.getElementById('pom-toggle')?.addEventListener('click', () => {
     if (state.pomodoroState === 'running') {
-      clearInterval(timerInterval);
       setState({ pomodoroState: 'paused' });
     } else {
-      startTimer();
       setState({ pomodoroState: 'running' });
     }
   });
 
-  // Reset
-  document.getElementById('pom-reset')?.addEventListener('click', async () => {
-    clearInterval(timerInterval);
-    const settings = await getSettings();
-    const duration = state.pomodoroType === 'work' ? settings.workDuration
-      : state.pomodoroType === 'shortBreak' ? settings.shortBreak
-      : settings.longBreak;
-    setState({
-      pomodoroState: 'idle',
-      pomodoroTimeLeft: duration * 60
-    });
+  // Reset — use command so floating window can also trigger this
+  document.getElementById('pom-reset')?.addEventListener('click', () => {
+    setState({ pomodoroCommand: 'reset' });
   });
 
-  // Skip
+  // Skip — use command so floating window can also trigger this
   document.getElementById('pom-skip')?.addEventListener('click', () => {
-    clearInterval(timerInterval);
-    handleTimerComplete();
+    setState({ pomodoroCommand: 'skip' });
   });
 
   // Type tabs
@@ -387,6 +376,37 @@ async function initPomodoro() {
   setState({
     _pomodoroSettings: settings,
     pomodoroTimeLeft: settings.workDuration * 60   // sync initial time with saved settings
+  });
+
+  // Reactive timer: any component (main or floating) can start/stop by setting pomodoroState
+  subscribe('pomodoroState', (newState) => {
+    if (newState === 'running') {
+      startTimer();
+    } else {
+      clearInterval(timerInterval);
+    }
+  });
+
+  // Command handler: any component can trigger skip/reset via pomodoroCommand
+  subscribe('pomodoroCommand', async (cmd) => {
+    if (!cmd) return;
+    // Clear command immediately to avoid re-triggering
+    setState({ pomodoroCommand: null });
+
+    if (cmd === 'skip') {
+      clearInterval(timerInterval);
+      await handleTimerComplete();
+    } else if (cmd === 'reset') {
+      clearInterval(timerInterval);
+      const s = await getSettings();
+      const duration = state.pomodoroType === 'work' ? s.workDuration
+        : state.pomodoroType === 'shortBreak' ? s.shortBreak
+        : s.longBreak;
+      setState({
+        pomodoroState: 'idle',
+        pomodoroTimeLeft: duration * 60
+      });
+    }
   });
 
   subscribeMultiple(['currentView', 'pomodoroState', 'pomodoroType', 'pomodoroTimeLeft', 'pomodoroSession', 'pomodoroTaskId'], () => {

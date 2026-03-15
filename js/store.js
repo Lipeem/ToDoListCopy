@@ -47,6 +47,7 @@ const state = {
   pomodoroTimeLeft: 25 * 60,
   pomodoroSession: 0,
   pomodoroTaskId: null,
+  pomodoroCommand: null,      // null | 'skip' | 'reset' — used by floating window to trigger actions
 
   // Floating windows
   floatingTask: false,
