@@ -88,7 +88,7 @@ function renderTaskDetail() {
           </div>
         </div>
         ${descriptionMode === 'edit'
-          ? `<textarea class="detail-desc-input" id="detail-desc" placeholder="Adicionar descrição... (suporta **negrito**, *itálico*, \`código\`, ## Título, - lista)">${task.description || ''}</textarea>`
+          ? `<textarea class="detail-desc-input" id="detail-desc" placeholder="Adicionar descrição... (suporta **negrito**, *itálico*, \`código\`, ## Título, - lista)">${escapeHtml(task.description || '')}</textarea>`
           : `<div class="detail-desc-preview" id="detail-desc-preview">${renderMarkdown(task.description || '') || '<span style="color:var(--text-tertiary);font-size:var(--fs-sm)">Sem descrição</span>'}</div>`
         }
       </div>
@@ -98,7 +98,7 @@ function renderTaskDetail() {
         <div class="detail-field-label">${icon('inbox')} Lista</div>
         <select class="select" id="detail-list" style="height:32px;font-size:var(--fs-sm)">
           ${state.lists.map(l => `
-            <option value="${l.id}" ${l.id === task.listId ? 'selected' : ''}>${l.emoji || ''} ${l.name}</option>
+            <option value="${l.id}" ${l.id === task.listId ? 'selected' : ''}>${l.emoji || ''} ${escapeHtml(l.name)}</option>
           `).join('')}
         </select>
       </div>
@@ -136,7 +136,7 @@ function renderTaskDetail() {
                   data-tag-toggle="${t.id}"
                   style="${taskTags.find(tt => tt.id === t.id) ? `background: ${t.color}22; color: ${t.color}; border: 1px solid ${t.color}44` : ''}">
               <span class="tag-dot" style="background: ${t.color}"></span>
-              ${t.name}
+              ${escapeHtml(t.name)}
             </span>
           `).join('')}
         </div>

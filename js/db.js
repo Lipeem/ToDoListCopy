@@ -232,7 +232,7 @@ function validateTask(item) {
   return {
     id: typeof item.id === 'string' ? item.id : generateId(),
     title: sanitizeStr(item.title || 'Sem título'),
-    description: typeof item.description === 'string' ? item.description : '',
+    description: sanitizeStr(typeof item.description === 'string' ? item.description : ''),
     listId: typeof item.listId === 'string' ? item.listId : 'inbox',
     priority: [0,1,2,3].includes(item.priority) ? item.priority : 0,
     dueDate: isValidDate(item.dueDate) ? item.dueDate : null,
@@ -308,12 +308,41 @@ function validateHabit(item) {
   };
 }
 
+function validateHabitLog(item) {
+  return {
+    id: typeof item.id === 'string' ? item.id : generateId(),
+    habitId: typeof item.habitId === 'string' ? item.habitId : '',
+    date: isValidDate(item.date) ? item.date : new Date().toISOString().split('T')[0],
+    createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
+  };
+}
+
+function validatePomodoroSession(item) {
+  return {
+    id: typeof item.id === 'string' ? item.id : generateId(),
+    taskId: typeof item.taskId === 'string' ? item.taskId : null,
+    date: isValidDate(item.date) ? item.date : new Date().toISOString().split('T')[0],
+    duration: typeof item.duration === 'number' && item.duration > 0 && item.duration <= 480 ? item.duration : 25,
+    completedAt: typeof item.completedAt === 'string' ? item.completedAt : new Date().toISOString(),
+  };
+}
+
+function validateSetting(item) {
+  return {
+    key: typeof item.key === 'string' ? item.key : '',
+    value: item.value !== undefined ? item.value : null,
+  };
+}
+
 const IMPORT_VALIDATORS = {
   tasks: validateTask,
   lists: validateList,
   tags: validateTag,
   folders: validateFolder,
   habits: validateHabit,
+  habitLogs: validateHabitLog,
+  pomodoroSessions: validatePomodoroSession,
+  settings: validateSetting,
 };
 
 const MAX_RECORDS_PER_STORE = 50000;
@@ -326,35 +355,54 @@ async function importData(jsonData) {
       throw new Error('JSON root must be an object');
     }
 
+    // Phase 1: Validate ALL stores in memory — no DB writes yet
+    const validatedData = {};
     for (const storeName of Object.keys(STORES)) {
-      if (data[storeName]) {
-        if (!Array.isArray(data[storeName])) {
-          throw new Error(`Store "${storeName}" must be an array`);
-        }
-        if (data[storeName].length > MAX_RECORDS_PER_STORE) {
-          throw new Error(`Store "${storeName}" exceeds ${MAX_RECORDS_PER_STORE} records`);
-        }
+      if (!data[storeName]) continue;
 
-        const validator = IMPORT_VALIDATORS[storeName];
-        const validated = validator
-          ? data[storeName].map(item => validator(item))
-          : data[storeName].map(item => {
-              // For stores without a specific validator, only keep primitive values
-              const safe = {};
-              for (const [k, v] of Object.entries(item)) {
-                if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
-                safe[k] = v;
-              }
-              return safe;
-            });
+      if (!Array.isArray(data[storeName])) {
+        throw new Error(`Store "${storeName}" must be an array`);
+      }
+      if (data[storeName].length > MAX_RECORDS_PER_STORE) {
+        throw new Error(`Store "${storeName}" exceeds ${MAX_RECORDS_PER_STORE} records`);
+      }
 
-        await dbClear(storeName);
-        for (const item of validated) {
-          await dbAdd(storeName, item);
+      const validator = IMPORT_VALIDATORS[storeName];
+      validatedData[storeName] = validator
+        ? data[storeName].map(item => validator(item))
+        : data[storeName].map(item => {
+            const safe = {};
+            for (const [k, v] of Object.entries(item)) {
+              if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+              safe[k] = v;
+            }
+            return safe;
+          });
+    }
+
+    // Phase 2: Commit atomically in a single transaction covering all affected stores
+    await openDB();
+    const storeNames = Object.keys(validatedData);
+    if (storeNames.length === 0) return true;
+
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeNames, 'readwrite');
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(new Error('Import transaction aborted'));
+      tx.oncomplete = () => resolve(true);
+
+      for (const storeName of storeNames) {
+        const store = tx.objectStore(storeName);
+        store.clear();
+        for (const item of validatedData[storeName]) {
+          // Ensure required fields are set without leaving the transaction
+          if (!item.id && STORES[storeName].keyPath === 'id') item.id = generateId();
+          if (!item.createdAt) item.createdAt = new Date().toISOString();
+          item.updatedAt = new Date().toISOString();
+          store.add(item);
         }
       }
-    }
-    return true;
+    });
   } catch (e) {
     console.error("Import failed:", e);
     return false;

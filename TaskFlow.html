@@ -166,8 +166,6 @@
    CSS RESET & BASE STYLES
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 *, *::before, *::after {
   margin: 0;
   padding: 0;
@@ -3631,7 +3629,7 @@ function validateTask(item) {
   return {
     id: typeof item.id === 'string' ? item.id : generateId(),
     title: sanitizeStr(item.title || 'Sem título'),
-    description: typeof item.description === 'string' ? item.description : '',
+    description: sanitizeStr(typeof item.description === 'string' ? item.description : ''),
     listId: typeof item.listId === 'string' ? item.listId : 'inbox',
     priority: [0,1,2,3].includes(item.priority) ? item.priority : 0,
     dueDate: isValidDate(item.dueDate) ? item.dueDate : null,
@@ -3707,12 +3705,41 @@ function validateHabit(item) {
   };
 }
 
+function validateHabitLog(item) {
+  return {
+    id: typeof item.id === 'string' ? item.id : generateId(),
+    habitId: typeof item.habitId === 'string' ? item.habitId : '',
+    date: isValidDate(item.date) ? item.date : new Date().toISOString().split('T')[0],
+    createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
+  };
+}
+
+function validatePomodoroSession(item) {
+  return {
+    id: typeof item.id === 'string' ? item.id : generateId(),
+    taskId: typeof item.taskId === 'string' ? item.taskId : null,
+    date: isValidDate(item.date) ? item.date : new Date().toISOString().split('T')[0],
+    duration: typeof item.duration === 'number' && item.duration > 0 && item.duration <= 480 ? item.duration : 25,
+    completedAt: typeof item.completedAt === 'string' ? item.completedAt : new Date().toISOString(),
+  };
+}
+
+function validateSetting(item) {
+  return {
+    key: typeof item.key === 'string' ? item.key : '',
+    value: item.value !== undefined ? item.value : null,
+  };
+}
+
 const IMPORT_VALIDATORS = {
   tasks: validateTask,
   lists: validateList,
   tags: validateTag,
   folders: validateFolder,
   habits: validateHabit,
+  habitLogs: validateHabitLog,
+  pomodoroSessions: validatePomodoroSession,
+  settings: validateSetting,
 };
 
 const MAX_RECORDS_PER_STORE = 50000;
@@ -3725,35 +3752,54 @@ async function importData(jsonData) {
       throw new Error('JSON root must be an object');
     }
 
+    // Phase 1: Validate ALL stores in memory — no DB writes yet
+    const validatedData = {};
     for (const storeName of Object.keys(STORES)) {
-      if (data[storeName]) {
-        if (!Array.isArray(data[storeName])) {
-          throw new Error(`Store "${storeName}" must be an array`);
-        }
-        if (data[storeName].length > MAX_RECORDS_PER_STORE) {
-          throw new Error(`Store "${storeName}" exceeds ${MAX_RECORDS_PER_STORE} records`);
-        }
+      if (!data[storeName]) continue;
 
-        const validator = IMPORT_VALIDATORS[storeName];
-        const validated = validator
-          ? data[storeName].map(item => validator(item))
-          : data[storeName].map(item => {
-              // For stores without a specific validator, only keep primitive values
-              const safe = {};
-              for (const [k, v] of Object.entries(item)) {
-                if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
-                safe[k] = v;
-              }
-              return safe;
-            });
+      if (!Array.isArray(data[storeName])) {
+        throw new Error(`Store "${storeName}" must be an array`);
+      }
+      if (data[storeName].length > MAX_RECORDS_PER_STORE) {
+        throw new Error(`Store "${storeName}" exceeds ${MAX_RECORDS_PER_STORE} records`);
+      }
 
-        await dbClear(storeName);
-        for (const item of validated) {
-          await dbAdd(storeName, item);
+      const validator = IMPORT_VALIDATORS[storeName];
+      validatedData[storeName] = validator
+        ? data[storeName].map(item => validator(item))
+        : data[storeName].map(item => {
+            const safe = {};
+            for (const [k, v] of Object.entries(item)) {
+              if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+              safe[k] = v;
+            }
+            return safe;
+          });
+    }
+
+    // Phase 2: Commit atomically in a single transaction covering all affected stores
+    await openDB();
+    const storeNames = Object.keys(validatedData);
+    if (storeNames.length === 0) return true;
+
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeNames, 'readwrite');
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(new Error('Import transaction aborted'));
+      tx.oncomplete = () => resolve(true);
+
+      for (const storeName of storeNames) {
+        const store = tx.objectStore(storeName);
+        store.clear();
+        for (const item of validatedData[storeName]) {
+          // Ensure required fields are set without leaving the transaction
+          if (!item.id && STORES[storeName].keyPath === 'id') item.id = generateId();
+          if (!item.createdAt) item.createdAt = new Date().toISOString();
+          item.updatedAt = new Date().toISOString();
+          store.add(item);
         }
       }
-    }
-    return true;
+    });
   } catch (e) {
     console.error("Import failed:", e);
     return false;
@@ -4070,7 +4116,7 @@ function renderTaskDetail() {
           </div>
         </div>
         ${descriptionMode === 'edit'
-          ? `<textarea class="detail-desc-input" id="detail-desc" placeholder="Adicionar descrição... (suporta **negrito**, *itálico*, \`código\`, ## Título, - lista)">${task.description || ''}</textarea>`
+          ? `<textarea class="detail-desc-input" id="detail-desc" placeholder="Adicionar descrição... (suporta **negrito**, *itálico*, \`código\`, ## Título, - lista)">${escapeHtml(task.description || '')}</textarea>`
           : `<div class="detail-desc-preview" id="detail-desc-preview">${renderMarkdown(task.description || '') || '<span style="color:var(--text-tertiary);font-size:var(--fs-sm)">Sem descrição</span>'}</div>`
         }
       </div>
@@ -4080,7 +4126,7 @@ function renderTaskDetail() {
         <div class="detail-field-label">${icon('inbox')} Lista</div>
         <select class="select" id="detail-list" style="height:32px;font-size:var(--fs-sm)">
           ${state.lists.map(l => `
-            <option value="${l.id}" ${l.id === task.listId ? 'selected' : ''}>${l.emoji || ''} ${l.name}</option>
+            <option value="${l.id}" ${l.id === task.listId ? 'selected' : ''}>${l.emoji || ''} ${escapeHtml(l.name)}</option>
           `).join('')}
         </select>
       </div>
@@ -4118,7 +4164,7 @@ function renderTaskDetail() {
                   data-tag-toggle="${t.id}"
                   style="${taskTags.find(tt => tt.id === t.id) ? `background: ${t.color}22; color: ${t.color}; border: 1px solid ${t.color}44` : ''}">
               <span class="tag-dot" style="background: ${t.color}"></span>
-              ${t.name}
+              ${escapeHtml(t.name)}
             </span>
           `).join('')}
         </div>
@@ -5524,7 +5570,7 @@ function renderHeader() {
       </button>
       <div class="main-header-title">
         <span class="emoji">${viewInfo.emoji}</span>
-        <span>${viewInfo.title}</span>
+        <span>${escapeHtml(viewInfo.title)}</span>
         ${isTaskView ? `<span class="main-header-count">${taskCount}</span>` : ''}
       </div>
     </div>
@@ -6432,7 +6478,7 @@ function renderListFilterSelect(filterId, currentFilter) {
       <option value="all" ${currentFilter === 'all' ? 'selected' : ''}>Todas as Listas</option>
       <option value="inbox" ${currentFilter === 'inbox' ? 'selected' : ''}>📥 Caixa de Entrada</option>
       ${state.lists.filter(l => !l.isDefault).map(l =>
-        `<option value="${l.id}" ${currentFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${l.name}</option>`
+        `<option value="${l.id}" ${currentFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${escapeHtml(l.name)}</option>`
       ).join('')}
     </select>
   `;
@@ -6443,7 +6489,7 @@ function renderTagFilterSelect(filterId, currentFilter) {
     <select id="${filterId}" class="select" style="height:30px;font-size:var(--fs-sm);padding:0 8px;min-width:130px;">
       <option value="" ${!currentFilter ? 'selected' : ''}>Todas as Tags</option>
       ${state.tags.map(t =>
-        `<option value="${t.id}" ${currentFilter === t.id ? 'selected' : ''}>${t.name}</option>`
+        `<option value="${t.id}" ${currentFilter === t.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
       ).join('')}
     </select>
   `;
@@ -6513,8 +6559,8 @@ function renderMonthView(year, month, listFilter, tagFilter) {
                 const taskTags = (t.tags || []).map(id => state.tags.find(tg => tg.id === id)).filter(Boolean);
                 const tagDots = taskTags.map(tg => `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${tg.color};margin-left:2px;flex-shrink:0"></span>`).join('');
                 const descIcon = t.description ? '<span style="opacity:0.6;font-size:9px;margin-left:2px">💬</span>' : '';
-                return `<div class="calendar-task" title="${t.description ? t.description.slice(0,80) : ''}" style="background:${color}22;color:${color};display:flex;align-items:center;gap:0" data-task-id="${t.id}">
-                  <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</span>
+                return `<div class="calendar-task" title="${escapeHtml(t.description ? t.description.slice(0,80) : '')}" style="background:${color}22;color:${color};display:flex;align-items:center;gap:0" data-task-id="${t.id}">
+                  <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</span>
                   ${tagDots}${descIcon}
                 </div>`;
               }).join('')}
@@ -6589,7 +6635,7 @@ function renderWeekView(date, listFilter, tagFilter) {
               ${dayTasks.map(t => {
                 const list = state.lists.find(l => l.id === t.listId);
                 const color = (!list || list.id === 'inbox') ? '#6b7280' : list.color;
-                return `<div class="calendar-task" style="background:${color}22;color:${color};font-size:11px;padding:2px 4px;border-radius:3px;cursor:pointer;" data-task-id="${t.id}">${t.title}</div>`;
+                return `<div class="calendar-task" style="background:${color}22;color:${color};font-size:11px;padding:2px 4px;border-radius:3px;cursor:pointer;" data-task-id="${t.id}">${escapeHtml(t.title)}</div>`;
               }).join('')}
             </div>
           `;
@@ -6633,7 +6679,7 @@ function renderWeekView(date, listFilter, tagFilter) {
                   const heightPx = Math.max(20, (durMin / 60) * hourHeight - 2);
                   return `<div class="calendar-task" style="position:absolute; top:${topPx}px; height:${heightPx}px; left:2px; right:2px; background:${color}22; color:${color}; border-left:3px solid ${color}; z-index:5; overflow:hidden; border-radius:3px; padding:2px 4px; cursor:pointer;" data-task-id="${t.id}">
                     <div style="font-weight:600;font-size:10px;">${t.startTime}</div>
-                    <div style="font-size:11px;line-height:1.2;">${t.title}</div>
+                    <div style="font-size:11px;line-height:1.2;">${escapeHtml(t.title)}</div>
                   </div>`;
                 }).join('')}
                 ${dayHabits.map(h => {
@@ -6643,7 +6689,7 @@ function renderWeekView(date, listFilter, tagFilter) {
                   const heightPx = Math.max(18, (durMin / 60) * hourHeight - 2);
                   return `<div style="position:absolute; top:${topPx}px; height:${heightPx}px; left:2px; right:2px; background:${h.color}18; color:${h.color}; border:1px dashed ${h.color}; border-radius:3px; z-index:4; display:flex; align-items:center; gap:3px; overflow:hidden; padding:1px 3px;">
                     <span style="font-size:12px;">${h.icon || '💪'}</span>
-                    <span style="font-size:10px;line-height:1;">${h.name}</span>
+                    <span style="font-size:10px;line-height:1;">${escapeHtml(h.name)}</span>
                   </div>`;
                 }).join('')}
               </div>
@@ -7046,7 +7092,7 @@ function renderPomodoro() {
       <div style="width:100%;max-width:420px;margin:0 auto var(--space-3) auto;">
         ${focusedTask ? `
           <div style="display:flex;align-items:center;justify-content:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);background:var(--primary-alpha);border-radius:var(--radius-lg);border:1px solid var(--primary)44;">
-            <span style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--primary)">🎯 ${focusedTask.title}</span>
+            <span style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--primary)">🎯 ${escapeHtml(focusedTask.title)}</span>
             <button class="btn-icon" id="pom-clear-task" title="Limpar foco" style="color:var(--text-tertiary);width:20px;height:20px;">${icon('x')}</button>
           </div>
         ` : `
@@ -7057,8 +7103,8 @@ function renderPomodoro() {
                 ${searchResults.map(t => {
                   const list = state.lists.find(l => l.id === t.listId);
                   return `<div class="context-menu-item" data-pom-task-select="${t.id}" style="cursor:pointer;display:flex;flex-direction:column;gap:2px;">
-                    <span style="font-size:var(--fs-sm);font-weight:var(--fw-medium)">${t.title}</span>
-                    ${list ? `<span style="font-size:var(--fs-xs);color:var(--text-tertiary)">${list.emoji || ''} ${list.name}</span>` : ''}
+                    <span style="font-size:var(--fs-sm);font-weight:var(--fw-medium)">${escapeHtml(t.title)}</span>
+                    ${list ? `<span style="font-size:var(--fs-xs);color:var(--text-tertiary)">${list.emoji || ''} ${escapeHtml(list.name)}</span>` : ''}
                   </div>`;
                 }).join('')}
               </div>
@@ -7429,7 +7475,7 @@ function renderHabitCard(habit, todayStr) {
         ${habit.icon || '💪'}
       </div>
       <div class="habit-info">
-        <div class="habit-name">${habit.name}</div>
+        <div class="habit-name">${escapeHtml(habit.name)}</div>
         <div class="habit-streak">
           ${icon('fire')}
           <span data-habit-streak="${habit.id}">0 dias</span>
@@ -7855,7 +7901,7 @@ function renderEisenhower() {
           <option value="all" ${listFilter === 'all' ? 'selected' : ''}>Todas as Listas</option>
           <option value="inbox" ${listFilter === 'inbox' ? 'selected' : ''}>📥 Caixa de Entrada</option>
           ${state.lists.filter(l => !l.isDefault).map(l =>
-            `<option value="${l.id}" ${listFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${l.name}</option>`
+            `<option value="${l.id}" ${listFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${escapeHtml(l.name)}</option>`
           ).join('')}
         </select>
       </div>
@@ -7898,11 +7944,11 @@ function renderEisenhowerCard(task, quadrantColor) {
 
   return `
     <div class="eisenhower-card" data-task-id="${task.id}" draggable="true">
-      <div class="eisenhower-card-title">${task.title}</div>
+      <div class="eisenhower-card-title">${escapeHtml(task.title)}</div>
       <div class="eisenhower-card-meta">
         ${task.dueDate ? `<span class="task-item-due ${getDateClass(task.dueDate)}">${icon('calendar')} ${formatDate(task.dueDate)}</span>` : ''}
         ${subtasks.length > 0 ? `<span>${icon('subtask')} ${completedSubs}/${subtasks.length}</span>` : ''}
-        ${list ? `<span><span class="task-item-list-dot" style="background:${list.color}"></span>${list.emoji || ''} ${list.name}</span>` : ''}
+        ${list ? `<span><span class="task-item-list-dot" style="background:${list.color}"></span>${list.emoji || ''} ${escapeHtml(list.name)}</span>` : ''}
         ${taskTags.map(t => `<span class="task-item-tag" style="background:${t.color}"></span>`).join('')}
       </div>
     </div>

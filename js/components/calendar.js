@@ -3,7 +3,7 @@
 // ============================================
 
 import { state, setState, subscribe, subscribeMultiple } from '../store.js';
-import { icon } from '../utils/icons.js';
+import { icon, escapeHtml } from '../utils/icons.js';
 import { MONTHS_PT, DAYS_SHORT_PT, getCalendarDays, isSameDay, isToday, formatDate, addDays } from '../utils/date.js';
 import { dbUpdate, dbGetAll } from '../db.js';
 
@@ -18,7 +18,7 @@ function renderListFilterSelect(filterId, currentFilter) {
       <option value="all" ${currentFilter === 'all' ? 'selected' : ''}>Todas as Listas</option>
       <option value="inbox" ${currentFilter === 'inbox' ? 'selected' : ''}>📥 Caixa de Entrada</option>
       ${state.lists.filter(l => !l.isDefault).map(l =>
-        `<option value="${l.id}" ${currentFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${l.name}</option>`
+        `<option value="${l.id}" ${currentFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${escapeHtml(l.name)}</option>`
       ).join('')}
     </select>
   `;
@@ -29,7 +29,7 @@ function renderTagFilterSelect(filterId, currentFilter) {
     <select id="${filterId}" class="select" style="height:30px;font-size:var(--fs-sm);padding:0 8px;min-width:130px;">
       <option value="" ${!currentFilter ? 'selected' : ''}>Todas as Tags</option>
       ${state.tags.map(t =>
-        `<option value="${t.id}" ${currentFilter === t.id ? 'selected' : ''}>${t.name}</option>`
+        `<option value="${t.id}" ${currentFilter === t.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
       ).join('')}
     </select>
   `;
@@ -99,8 +99,8 @@ function renderMonthView(year, month, listFilter, tagFilter) {
                 const taskTags = (t.tags || []).map(id => state.tags.find(tg => tg.id === id)).filter(Boolean);
                 const tagDots = taskTags.map(tg => `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${tg.color};margin-left:2px;flex-shrink:0"></span>`).join('');
                 const descIcon = t.description ? '<span style="opacity:0.6;font-size:9px;margin-left:2px">💬</span>' : '';
-                return `<div class="calendar-task" title="${t.description ? t.description.slice(0,80) : ''}" style="background:${color}22;color:${color};display:flex;align-items:center;gap:0" data-task-id="${t.id}">
-                  <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</span>
+                return `<div class="calendar-task" title="${escapeHtml(t.description ? t.description.slice(0,80) : '')}" style="background:${color}22;color:${color};display:flex;align-items:center;gap:0" data-task-id="${t.id}">
+                  <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</span>
                   ${tagDots}${descIcon}
                 </div>`;
               }).join('')}
@@ -175,7 +175,7 @@ function renderWeekView(date, listFilter, tagFilter) {
               ${dayTasks.map(t => {
                 const list = state.lists.find(l => l.id === t.listId);
                 const color = (!list || list.id === 'inbox') ? '#6b7280' : list.color;
-                return `<div class="calendar-task" style="background:${color}22;color:${color};font-size:11px;padding:2px 4px;border-radius:3px;cursor:pointer;" data-task-id="${t.id}">${t.title}</div>`;
+                return `<div class="calendar-task" style="background:${color}22;color:${color};font-size:11px;padding:2px 4px;border-radius:3px;cursor:pointer;" data-task-id="${t.id}">${escapeHtml(t.title)}</div>`;
               }).join('')}
             </div>
           `;
@@ -219,7 +219,7 @@ function renderWeekView(date, listFilter, tagFilter) {
                   const heightPx = Math.max(20, (durMin / 60) * hourHeight - 2);
                   return `<div class="calendar-task" style="position:absolute; top:${topPx}px; height:${heightPx}px; left:2px; right:2px; background:${color}22; color:${color}; border-left:3px solid ${color}; z-index:5; overflow:hidden; border-radius:3px; padding:2px 4px; cursor:pointer;" data-task-id="${t.id}">
                     <div style="font-weight:600;font-size:10px;">${t.startTime}</div>
-                    <div style="font-size:11px;line-height:1.2;">${t.title}</div>
+                    <div style="font-size:11px;line-height:1.2;">${escapeHtml(t.title)}</div>
                   </div>`;
                 }).join('')}
                 ${dayHabits.map(h => {
@@ -229,7 +229,7 @@ function renderWeekView(date, listFilter, tagFilter) {
                   const heightPx = Math.max(18, (durMin / 60) * hourHeight - 2);
                   return `<div style="position:absolute; top:${topPx}px; height:${heightPx}px; left:2px; right:2px; background:${h.color}18; color:${h.color}; border:1px dashed ${h.color}; border-radius:3px; z-index:4; display:flex; align-items:center; gap:3px; overflow:hidden; padding:1px 3px;">
                     <span style="font-size:12px;">${h.icon || '💪'}</span>
-                    <span style="font-size:10px;line-height:1;">${h.name}</span>
+                    <span style="font-size:10px;line-height:1;">${escapeHtml(h.name)}</span>
                   </div>`;
                 }).join('')}
               </div>

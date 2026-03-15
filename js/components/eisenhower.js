@@ -4,7 +4,7 @@
 
 import { state, setState, subscribeMultiple } from '../store.js';
 import { dbUpdate, dbGetAll } from '../db.js';
-import { icon } from '../utils/icons.js';
+import { icon, escapeHtml } from '../utils/icons.js';
 import { formatDate, getDateClass } from '../utils/date.js';
 
 const QUADRANTS = [
@@ -45,7 +45,7 @@ function renderEisenhower() {
           <option value="all" ${listFilter === 'all' ? 'selected' : ''}>Todas as Listas</option>
           <option value="inbox" ${listFilter === 'inbox' ? 'selected' : ''}>📥 Caixa de Entrada</option>
           ${state.lists.filter(l => !l.isDefault).map(l =>
-            `<option value="${l.id}" ${listFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${l.name}</option>`
+            `<option value="${l.id}" ${listFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${escapeHtml(l.name)}</option>`
           ).join('')}
         </select>
       </div>
@@ -88,11 +88,11 @@ function renderEisenhowerCard(task, quadrantColor) {
 
   return `
     <div class="eisenhower-card" data-task-id="${task.id}" draggable="true">
-      <div class="eisenhower-card-title">${task.title}</div>
+      <div class="eisenhower-card-title">${escapeHtml(task.title)}</div>
       <div class="eisenhower-card-meta">
         ${task.dueDate ? `<span class="task-item-due ${getDateClass(task.dueDate)}">${icon('calendar')} ${formatDate(task.dueDate)}</span>` : ''}
         ${subtasks.length > 0 ? `<span>${icon('subtask')} ${completedSubs}/${subtasks.length}</span>` : ''}
-        ${list ? `<span><span class="task-item-list-dot" style="background:${list.color}"></span>${list.emoji || ''} ${list.name}</span>` : ''}
+        ${list ? `<span><span class="task-item-list-dot" style="background:${list.color}"></span>${list.emoji || ''} ${escapeHtml(list.name)}</span>` : ''}
         ${taskTags.map(t => `<span class="task-item-tag" style="background:${t.color}"></span>`).join('')}
       </div>
     </div>

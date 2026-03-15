@@ -3,7 +3,7 @@
 // ============================================
 
 import { state, setState, subscribe, subscribeMultiple } from '../store.js';
-import { icon } from '../utils/icons.js';
+import { icon, escapeHtml } from '../utils/icons.js';
 import { toggleTheme, getCurrentTheme } from '../utils/theme.js';
 
 const VIEW_TITLES = {
@@ -64,7 +64,7 @@ function renderHeader() {
       </button>
       <div class="main-header-title">
         <span class="emoji">${viewInfo.emoji}</span>
-        <span>${viewInfo.title}</span>
+        <span>${escapeHtml(viewInfo.title)}</span>
         ${isTaskView ? `<span class="main-header-count">${taskCount}</span>` : ''}
       </div>
     </div>

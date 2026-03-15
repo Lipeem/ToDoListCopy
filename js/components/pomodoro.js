@@ -4,7 +4,7 @@
 
 import { state, setState, subscribe, subscribeMultiple } from '../store.js';
 import { dbAdd, dbGetAll, getSetting, setSetting } from '../db.js';
-import { icon } from '../utils/icons.js';
+import { icon, escapeHtml } from '../utils/icons.js';
 import { formatTime } from '../utils/date.js';
 
 let timerInterval = null;
@@ -60,7 +60,7 @@ function renderPomodoro() {
       <div style="width:100%;max-width:420px;margin:0 auto var(--space-3) auto;">
         ${focusedTask ? `
           <div style="display:flex;align-items:center;justify-content:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);background:var(--primary-alpha);border-radius:var(--radius-lg);border:1px solid var(--primary)44;">
-            <span style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--primary)">🎯 ${focusedTask.title}</span>
+            <span style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--primary)">🎯 ${escapeHtml(focusedTask.title)}</span>
             <button class="btn-icon" id="pom-clear-task" title="Limpar foco" style="color:var(--text-tertiary);width:20px;height:20px;">${icon('x')}</button>
           </div>
         ` : `
@@ -71,8 +71,8 @@ function renderPomodoro() {
                 ${searchResults.map(t => {
                   const list = state.lists.find(l => l.id === t.listId);
                   return `<div class="context-menu-item" data-pom-task-select="${t.id}" style="cursor:pointer;display:flex;flex-direction:column;gap:2px;">
-                    <span style="font-size:var(--fs-sm);font-weight:var(--fw-medium)">${t.title}</span>
-                    ${list ? `<span style="font-size:var(--fs-xs);color:var(--text-tertiary)">${list.emoji || ''} ${list.name}</span>` : ''}
+                    <span style="font-size:var(--fs-sm);font-weight:var(--fw-medium)">${escapeHtml(t.title)}</span>
+                    ${list ? `<span style="font-size:var(--fs-xs);color:var(--text-tertiary)">${list.emoji || ''} ${escapeHtml(list.name)}</span>` : ''}
                   </div>`;
                 }).join('')}
               </div>

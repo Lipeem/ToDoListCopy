@@ -890,8 +890,174 @@ Os seguintes vetores de ataque tradicionais foram analisados e confirmados como 
 
 ---
 
-**FIM DO RELATÓRIO**
+**FIM DO RELATÓRIO — Versão 1 (13/03/2026)**
 
 **Auditor:** Claude AI — Security Assessment
 **Data:** 13 de março de 2026
 **Próxima Revisão Recomendada:** Após implementação de cada feature que renderize dados dinâmicos via `innerHTML`
+
+---
+---
+
+# VULNERABILITY ASSESSMENT REPORT — TaskFlow v1.2
+# VERSÃO 2 — Revisão Pós-Análise Cruzada (ChatGPT + Gemini)
+
+**Documento:** Adendo de Auditoria de Segurança — Revisão de Segunda Opinião
+**Aplicação:** TaskFlow — Gerenciador de Tarefas Client-Side
+**Data:** 13 de março de 2026
+**Contexto:** Este adendo incorpora achados dos relatórios VAT produzidos pelo ChatGPT (F1–F10) e Gemini (VULN-011–VULN-014), comparados ao estado do código após as correções da Versão 1, e documenta as correções implementadas nesta sessão.
+
+---
+
+## 1. NOVOS ACHADOS CONFIRMADOS (pós-v1)
+
+### VULN-011: XSS residual em 6 componentes não cobertos pela v1
+
+**Classificação:** CRÍTICO
+**Status na v1:** Incompleto — `escapeHtml` foi implementado mas não aplicado em todos os arquivos
+**Status na v2:** ✅ CORRIGIDO
+
+**Arquivos corrigidos:**
+- `calendar.js` — 7 pontos: l.name (select), t.name (tag select), t.description (atributo title), t.title (mês, semana/all-day, timeblock), h.name (habit no timeblock)
+- `eisenhower.js` — 3 pontos: l.name (select), task.title (card), list.name (card meta)
+- `habits.js` — 1 ponto: habit.name (habit card)
+- `pomodoro.js` — 3 pontos: focusedTask.title, t.title (search results), list.name (search results)
+- `header.js` — 1 ponto: viewInfo.title (que pode conter list.name ou tag.name)
+- `taskDetail.js` — 3 pontos: task.description em textarea, l.name (select), t.name (tag)
+
+**Total de novos pontos protegidos:** 18
+**Total acumulado de proteções escapeHtml no projeto:** 34 (confirmado no TaskFlow.html compilado)
+
+---
+
+### VULN-012: Importação destrutiva e não atômica
+
+**Classificação:** ALTO
+**Reportado originalmente por:** ChatGPT (F3) — confirmado como gap após revisão v1
+**Status na v1:** Não corrigido
+**Status na v2:** ✅ CORRIGIDO
+
+**Problema:** A função `importData()` limpava cada store e inseria itens sequencialmente. Se falhasse na metade, o banco ficaria em estado parcial e inconsistente — sem possibilidade de rollback.
+
+**Correção implementada em `db.js`:**
+- Separação em **Fase 1** (validação completa em memória) e **Fase 2** (commit atômico)
+- Fase 2 usa `db.transaction([...storeNames], 'readwrite')` cobrindo todos os stores afetados em uma única transação
+- `tx.onabort` garante falha total em caso de erro parcial — nenhum dado é corrompido
+- `tx.oncomplete` confirma sucesso apenas se todos os stores foram gravados com sucesso
+
+---
+
+### VULN-013: Validators ausentes para 3 stores
+
+**Classificação:** MÉDIO
+**Reportado por:** ChatGPT (F5), Gemini (VULN-014)
+**Status na v1:** Não corrigido — `habitLogs`, `pomodoroSessions`, `settings` usavam validação genérica
+**Status na v2:** ✅ CORRIGIDO
+
+**Validators adicionados em `db.js`:**
+
+```javascript
+validateHabitLog(item)     → valida id, habitId (string), date (YYYY-MM-DD), createdAt
+validatePomodoroSession(item) → valida id, taskId, date, duration (1-480 min), completedAt
+validateSetting(item)      → valida key (string), value (any)
+```
+
+`IMPORT_VALIDATORS` atualizado para cobrir todos os 8 stores.
+
+---
+
+### VULN-014: `description` não sanitizada no validator de importação
+
+**Classificação:** BAIXO
+**Reportado por:** ChatGPT (F4 — gap específico)
+**Status na v1:** Incompleto — `description` passava sem `sanitizeStr`
+**Status na v2:** ✅ CORRIGIDO
+
+**Correção em `db.js` → `validateTask()`:**
+```javascript
+// Antes:
+description: typeof item.description === 'string' ? item.description : '',
+// Depois:
+description: sanitizeStr(typeof item.description === 'string' ? item.description : ''),
+```
+
+---
+
+### VULN-015: Dependência externa de Google Fonts
+
+**Classificação:** MÉDIO
+**Reportado por:** ChatGPT (F8)
+**Status na v1:** Não identificado
+**Status na v2:** ✅ CORRIGIDO
+
+**Problema:** `css/base.css` linha 5 continha `@import url('https://fonts.googleapis.com/...')` — dependência externa desnecessária em app offline-first. Tentativa de conexão bloqueada pela CSP mas presente no código.
+
+**Correção:** Linha removida de `base.css`. A fonte Inter não estava sendo carregada de qualquer forma (bloqueada pelo `font-src 'none'` na CSP). O app usa fontes do sistema como fallback.
+
+---
+
+## 2. ACHADOS DESCARTADOS (sem correção necessária)
+
+| # | Achado (ChatGPT/Gemini) | Motivo da descartagem |
+|---|------------------------|----------------------|
+| ChatGPT F2 | CSP com `unsafe-inline` | Limitação obrigatória da arquitetura single-file |
+| ChatGPT F6 | Dados IndexedDB em texto claro | Inerente a apps client-side sem backend |
+| ChatGPT F7 | Backup sem assinatura | Sem backend para gerenciar chaves; validators já mitigam |
+| ChatGPT F9 | Sem integridade do artefato | Repositório Git resolve |
+| ChatGPT F10 | Console logging | Risco negligível, benefício de debugging supera |
+| Gemini VULN-011 | Crypto-shredding no delete | Security theater — browser gerencia blocos de disco |
+| Gemini VULN-012 | Drag data transfer leak | Já seguro — só IDs são transferidos, não dados |
+| Gemini VULN-013 | Reverse tabnabbing | Superfície não existe — app não cria `<a>` clicáveis |
+| Gemini Web Crypto | Criptografia IndexedDB com PBKDF2 | Over-engineering para app pessoal; péssima UX |
+
+---
+
+## 3. STATUS CONSOLIDADO PÓS-v2
+
+### Postura de segurança: **BOA** (riscos críticos e altos eliminados)
+
+| Categoria | Vulnerabilidades |
+|-----------|-----------------|
+| ✅ Corrigidas v1 | VULN-001 a VULN-010 (10 vulns) |
+| ✅ Corrigidas v2 | VULN-011 a VULN-015 (5 vulns adicionais) |
+| 🔒 Limitações arquiteturais aceitas | CSP unsafe-inline, dados sem criptografia |
+| 🚫 Descartadas | 9 itens dos relatórios de terceiros |
+
+### Superfícies XSS — cobertura atual
+
+| Arquivo | Pontos antes v1 | Corrigidos v1 | Corrigidos v2 | Restam |
+|---------|----------------|--------------|--------------|--------|
+| taskList.js | 3 | 3 | — | 0 |
+| kanban.js | 2 | 2 | — | 0 |
+| sidebar.js | 4 | 4 | — | 0 |
+| taskDetail.js | 2+3 | 2 | 3 | 0 |
+| modal.js | 4 | 4 | — | 0 |
+| calendar.js | 7 | 0 | 7 | 0 |
+| eisenhower.js | 3 | 0 | 3 | 0 |
+| habits.js | 1 | 0 | 1 | 0 |
+| pomodoro.js | 3 | 0 | 3 | 0 |
+| header.js | 1 | 0 | 1 | 0 |
+| **Total** | **33** | **15** | **18** | **0** |
+
+---
+
+## 4. ARQUIVOS MODIFICADOS NESTA REVISÃO
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `js/components/calendar.js` | +import escapeHtml; 7 pontos de escaping |
+| `js/components/eisenhower.js` | +import escapeHtml; 3 pontos de escaping |
+| `js/components/habits.js` | +import escapeHtml; 1 ponto de escaping |
+| `js/components/pomodoro.js` | +import escapeHtml; 3 pontos de escaping |
+| `js/components/header.js` | +import escapeHtml; 1 ponto de escaping |
+| `js/components/taskDetail.js` | 3 pontos de escaping (import já existia) |
+| `js/db.js` | Import atômico; 3 novos validators; sanitizeStr em description |
+| `css/base.css` | Removido @import Google Fonts |
+| `TaskFlow.html` | Regenerado — 253 KB |
+
+---
+
+**FIM DO ADENDO — Versão 2 (13/03/2026)**
+
+**Auditor:** Claude AI — Security Assessment
+**Build verificado:** TaskFlow.html 253 KB — escapeHtml(34), validators(6), fonts.googleapis(0), tx.oncomplete(1)

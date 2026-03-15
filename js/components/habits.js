@@ -4,7 +4,7 @@
 
 import { state, setState, subscribeMultiple } from '../store.js';
 import { dbAdd, dbGetAll, dbGetByIndex, dbDelete } from '../db.js';
-import { icon } from '../utils/icons.js';
+import { icon, escapeHtml } from '../utils/icons.js';
 import { DAYS_MINI_PT, addDays, isSameDay, today } from '../utils/date.js';
 
 function renderHabits() {
@@ -54,7 +54,7 @@ function renderHabitCard(habit, todayStr) {
         ${habit.icon || '💪'}
       </div>
       <div class="habit-info">
-        <div class="habit-name">${habit.name}</div>
+        <div class="habit-name">${escapeHtml(habit.name)}</div>
         <div class="habit-streak">
           ${icon('fire')}
           <span data-habit-streak="${habit.id}">0 dias</span>
