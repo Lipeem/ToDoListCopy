@@ -6,6 +6,7 @@ import { state, setState, subscribe, subscribeMultiple } from '../store.js';
 import { icon, escapeHtml } from '../utils/icons.js';
 import { formatTime } from '../utils/date.js';
 import { dbUpdate, dbGetAll } from '../db.js';
+import { bindRichTextEditor, renderRichTextEditor } from '../utils/richText.js';
 
 // ── Draggable logic (document listeners added once per element) ──
 
@@ -83,7 +84,14 @@ function renderFloatingTask() {
     </div>
     <div class="floating-window-body">
       <input type="text" class="floating-task-title" id="float-task-title" value="${escapeHtml(task.title)}" />
-      <textarea class="floating-task-desc" id="float-task-desc" placeholder="Descrição...">${escapeHtml(task.description || '')}</textarea>
+      <div id="float-task-desc-root">
+        ${renderRichTextEditor({
+          value: task.description || '',
+          placeholder: 'Descrição...',
+          compact: true,
+          allowExpand: true
+        })}
+      </div>
       ${subtasks.length > 0 ? `
         <div class="floating-subtasks">
           <div class="floating-subtasks-header">${icon('subtask')} Subtarefas (${completedSubs}/${subtasks.length})</div>
@@ -103,9 +111,9 @@ function renderFloatingTask() {
       </div>
     </div>
     <div class="floating-window-footer">
-      <label style="font-size:var(--fs-xs);color:var(--text-tertiary);display:flex;align-items:center;gap:4px;">
-        Opacidade
-        <input type="range" id="float-task-opacity" min="20" max="100" value="${Math.round(opacity * 100)}" style="width:80px;" />
+      <label class="floating-opacity-control">
+        <span>Opacidade</span>
+        <input type="range" id="float-task-opacity" min="20" max="100" value="${Math.round(opacity * 100)}" />
       </label>
     </div>
   `;
@@ -132,22 +140,18 @@ function bindFloatingTaskEvents(task, el) {
     setState({ tasks });
   });
 
-  const descInput = el.querySelector('#float-task-desc');
-  if (descInput) {
-    descInput.style.height = 'auto';
-    descInput.style.height = descInput.scrollHeight + 'px';
-    descInput.addEventListener('input', e => {
-      task.description = e.target.value;
-      descInput.style.height = 'auto';
-      descInput.style.height = descInput.scrollHeight + 'px';
-    });
-    descInput.addEventListener('blur', async e => {
-      task.description = e.target.value;
+  bindRichTextEditor(el.querySelector('#float-task-desc-root'), {
+    initialValue: task.description || '',
+    onChange: (html) => {
+      task.description = html;
+    },
+    onSave: async (html) => {
+      task.description = html;
       await dbUpdate('tasks', task);
       const tasks = await dbGetAll('tasks');
       setState({ tasks });
-    });
-  }
+    }
+  });
 
   el.querySelectorAll('[data-float-subtask]').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -212,7 +216,16 @@ function renderFloatingPomodoro() {
     </div>
     <div class="floating-window-body" style="align-items:center;gap:var(--space-3);">
       <div class="floating-pom-time" style="font-size:2.5rem;font-weight:var(--fw-bold);color:var(--text-primary);font-variant-numeric:tabular-nums;letter-spacing:-0.02em;">${timeStr}</div>
-      ${focusedTask ? `<div style="font-size:var(--fs-xs);color:var(--text-tertiary);text-align:center;">🎯 ${escapeHtml(focusedTask.title.substring(0, 30))}</div>` : ''}
+      ${focusedTask ? `
+        <div class="floating-pom-task">
+          Tarefa em foco
+          <strong>${escapeHtml(focusedTask.title)}</strong>
+        </div>
+      ` : `
+        <div class="floating-pom-task is-empty">
+          Nenhuma tarefa vinculada ao foco atual
+        </div>
+      `}
       <div style="display:flex;gap:var(--space-2);align-items:center;">
         <button class="pomodoro-btn pomodoro-btn-secondary" id="float-pom-reset" style="width:36px;height:36px;" title="Reiniciar">${icon('stop')}</button>
         <button class="pomodoro-btn pomodoro-btn-primary" id="float-pom-toggle" style="width:44px;height:44px;">
@@ -222,9 +235,9 @@ function renderFloatingPomodoro() {
       </div>
     </div>
     <div class="floating-window-footer">
-      <label style="font-size:var(--fs-xs);color:var(--text-tertiary);display:flex;align-items:center;gap:4px;">
-        Opacidade
-        <input type="range" id="float-pom-opacity" min="20" max="100" value="${Math.round(opacity * 100)}" style="width:80px;" />
+      <label class="floating-opacity-control">
+        <span>Opacidade</span>
+        <input type="range" id="float-pom-opacity" min="20" max="100" value="${Math.round(opacity * 100)}" />
       </label>
     </div>
   `;

@@ -3,10 +3,30 @@
 // ============================================
 
 import { state, setState, subscribe, subscribeMultiple } from '../store.js';
-import { dbAdd, dbUpdate, dbGetAll, dbDelete } from '../db.js';
+import { dbAdd, dbUpdate, dbBulkUpdate, dbGetAll, dbDelete } from '../db.js';
 import { icon, escapeHtml } from '../utils/icons.js';
 import { formatDate, getDateClass, isToday, isTomorrow, isWithinDays, extractNaturalDate, parseLocal, isPast } from '../utils/date.js';
 import { renderTaskDetail } from './taskDetail.js';
+import { stripRichText, truncateRichText } from '../utils/richText.js';
+
+function getReorderListId() {
+  if (state.currentView === 'inbox') return 'inbox';
+  if (state.currentView.startsWith('list:')) return state.currentView.split(':')[1];
+  if (state.currentView === 'all' && state.allListFilter && state.allListFilter !== 'all') {
+    return state.allListFilter;
+  }
+  return null;
+}
+
+function canReorderCurrentView() {
+  return state.sortBy === 'sortOrder' && !!getReorderListId();
+}
+
+function getNextSortOrder(listId) {
+  return state.tasks
+    .filter(t => t.listId === listId)
+    .reduce((max, task) => Math.max(max, task.sortOrder ?? -1), -1) + 1;
+}
 
 function getTasksForView() {
   let tasks = [...state.tasks];
@@ -17,7 +37,7 @@ function getTasksForView() {
     const q = state.searchQuery.toLowerCase();
     tasks = tasks.filter(t =>
       t.title.toLowerCase().includes(q) ||
-      (t.description || '').toLowerCase().includes(q) ||
+      stripRichText(t.description || '').toLowerCase().includes(q) ||
       (t.tags || []).some(tagId => {
         const tag = state.tags.find(tg => tg.id === tagId);
         return tag && tag.name.toLowerCase().includes(q);
@@ -124,10 +144,12 @@ function renderTaskItem(task) {
   const subtasks = task.subtasks || [];
   const completedSubtasks = subtasks.filter(s => s.completed).length;
   const showListName = ['today', 'tomorrow', 'week', 'all', 'completed', 'search'].includes(state.currentView);
+  const canReorder = canReorderCurrentView() && !task.isCompleted && !task.isCanceled;
+  const descriptionText = truncateRichText(task.description || '', 140);
 
   return `
     <div class="task-item ${task.isCompleted && !isNotesList ? 'completed' : ''} ${task.isCanceled ? 'canceled' : ''} ${state.selectedTaskId === task.id ? 'selected' : ''}"
-         data-task-id="${task.id}" draggable="true" style="${task.isCanceled ? 'opacity: 0.6;' : ''}">
+         data-task-id="${task.id}" draggable="${canReorder ? 'true' : 'false'}" style="${task.isCanceled ? 'opacity: 0.6;' : ''}">
       ${task.priority > 0 && !isNotesList ? `<div class="task-item-priority" style="background: ${getPriorityColor(task.priority)}"></div>` : ''}
       <div class="checkbox task-item-checkbox ${task.isCompleted ? 'checked' : ''} ${task.isCanceled ? 'canceled' : ''} ${getPriorityClass(task.priority)}"
            data-task-complete="${task.id}" style="${isNotesList ? 'display:none;' : ''} ${task.isCanceled ? 'background:var(--bg-tertiary);border-color:var(--border-color);color:var(--text-tertiary);' : ''}">
@@ -135,7 +157,7 @@ function renderTaskItem(task) {
       </div>
       <div class="task-item-content">
         <div class="task-item-title">${escapeHtml(task.title)}</div>
-        ${task.description ? `<div class="task-item-desc">${escapeHtml(task.description)}</div>` : ''}
+        ${descriptionText ? `<div class="task-item-desc">${escapeHtml(descriptionText)}</div>` : ''}
         <div class="task-item-meta">
           ${task.dueDate && !isNotesList ? `
             <span class="task-item-due ${getDateClass(task.dueDate)}">
@@ -209,7 +231,7 @@ function renderTaskList() {
         <option value="all" ${(!state.allListFilter || state.allListFilter === 'all') ? 'selected' : ''}>Todas as listas</option>
         <option value="inbox" ${state.allListFilter === 'inbox' ? 'selected' : ''}>📥 Caixa de Entrada</option>
         ${state.lists.filter(l => !l.isDefault).map(l =>
-          `<option value="${l.id}" ${state.allListFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${escapeHtml(l.name)}</option>`
+          `<option value="${l.id}" ${state.allListFilter === l.id ? 'selected' : ''}>${escapeHtml(l.emoji || '📝')} ${escapeHtml(l.name)}</option>`
         ).join('')}
       </select>
     </div>
@@ -302,7 +324,7 @@ function bindTaskListEvents(targetListId) {
           completedAt: null,
           isRecurring: false,
           recurRule: null,
-          sortOrder: state.tasks.length
+          sortOrder: getNextSortOrder(listId)
         };
 
         await dbAdd('tasks', newTask);
@@ -370,9 +392,12 @@ function bindTaskListEvents(targetListId) {
 }
 
 function setupTaskDragDrop() {
-  let draggedTaskId = null;
+  if (!canReorderCurrentView()) return;
 
-  document.querySelectorAll('.task-item[draggable]').forEach(el => {
+  let draggedTaskId = null;
+  const reorderListId = getReorderListId();
+
+  document.querySelectorAll('.task-item[draggable="true"]').forEach(el => {
     el.addEventListener('dragstart', (e) => {
       draggedTaskId = el.dataset.taskId;
       el.classList.add('dragging');
@@ -400,7 +425,9 @@ function setupTaskDragDrop() {
       const targetId = el.dataset.taskId;
 
       if (draggedTaskId && draggedTaskId !== targetId) {
-        const tasks = [...state.tasks];
+        const tasks = state.tasks
+          .filter(t => t.listId === reorderListId && !t.isCompleted && !t.isCanceled)
+          .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
         const dragIdx = tasks.findIndex(t => t.id === draggedTaskId);
         const dropIdx = tasks.findIndex(t => t.id === targetId);
 
@@ -408,16 +435,18 @@ function setupTaskDragDrop() {
           const [moved] = tasks.splice(dragIdx, 1);
           tasks.splice(dropIdx, 0, moved);
 
-          // Update sort orders
+          const changedTasks = [];
           tasks.forEach((t, i) => {
-            t.sortOrder = i;
+            if ((t.sortOrder || 0) !== i) {
+              t.sortOrder = i;
+              changedTasks.push(t);
+            }
           });
 
-          for (const t of tasks) {
-            await dbUpdate('tasks', t);
+          if (changedTasks.length > 0) {
+            await dbBulkUpdate('tasks', changedTasks);
+            setState({ tasks: await dbGetAll('tasks') });
           }
-
-          setState({ tasks: await dbGetAll('tasks') });
         }
       }
     });

@@ -29,7 +29,7 @@ function initShortcuts() {
 
     // Ignore if typing in input/textarea
     const tag = e.target.tagName.toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable || e.target.closest?.('[data-rich-root]')) return;
 
     // Ignore if modal is open
     if (state.modalOpen) {
@@ -62,7 +62,10 @@ function initShortcuts() {
         if (state.detailOpen) {
           setState({ detailOpen: false, selectedTaskId: null });
         } else if (state.searchQuery) {
-          setState({ searchQuery: '', currentView: 'inbox' });
+          setState({
+            searchQuery: '',
+            currentView: state.currentView === 'search' ? (state.searchReturnView || 'inbox') : state.currentView
+          });
         }
         break;
 

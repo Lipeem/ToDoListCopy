@@ -94,6 +94,20 @@ const Icons = {
   download: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
 
   upload: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+
+  expand: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>`,
+
+  checklist: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="4" height="4" rx="1"/><path d="M4.75 6.1 5.8 7.2 7.4 5.2"/><line x1="10.5" y1="6" x2="20.5" y2="6"/><rect x="3.5" y="10" width="4" height="4" rx="1"/><path d="M4.75 12.1 5.8 13.2 7.4 11.2"/><line x1="10.5" y1="12" x2="20.5" y2="12"/><rect x="3.5" y="16" width="4" height="4" rx="1"/><line x1="10.5" y1="18" x2="20.5" y2="18"/></svg>`,
+
+  bulletList: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="1.2" fill="currentColor"/><line x1="10" y1="6" x2="20" y2="6"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><line x1="10" y1="12" x2="20" y2="12"/><circle cx="5" cy="18" r="1.2" fill="currentColor"/><line x1="10" y1="18" x2="20" y2="18"/></svg>`,
+
+  orderedList: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4l-1 1"/><path d="M3 13h2a1 1 0 0 0 0-2H3"/><path d="M3 11h2a1 1 0 0 1 0 2H3"/><path d="M3 17h2a1 1 0 0 1 0 2H3"/><path d="M3 19h2"/><line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/></svg>`,
+
+  quote: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2l-1 4"/><path d="M19 8h-3a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2l-1 4"/></svg>`,
+
+  link: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 1 0-7l1.5-1.5a5 5 0 1 1 7 7L17 13"/><path d="M14 11a5 5 0 0 1 0 7L12.5 19.5a5 5 0 1 1-7-7L7 11"/><line x1="8" y1="16" x2="16" y2="8"/></svg>`,
+
+  code: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 3 12 9 6"/><polyline points="15 6 21 12 15 18"/><line x1="13" y1="4" x2="11" y2="20"/></svg>`,
 };
 
 function icon(name, className = '') {

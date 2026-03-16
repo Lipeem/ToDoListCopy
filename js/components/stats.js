@@ -4,7 +4,7 @@
 
 import { state, setState, subscribeMultiple } from '../store.js';
 import { dbGetAll } from '../db.js';
-import { icon } from '../utils/icons.js';
+import { icon, escapeHtml } from '../utils/icons.js';
 import { addDays, today, DAYS_SHORT_PT } from '../utils/date.js';
 
 function renderStats() {
@@ -132,7 +132,8 @@ async function loadStats() {
     const listStats = Object.entries(listCounts).map(([listId, counts]) => {
       const list = state.lists.find(l => l.id === listId);
       return {
-        name: list ? `${list.emoji || ''} ${list.name}` : 'Sem lista',
+        emoji: list?.emoji || '',
+        name: list?.name || 'Sem lista',
         color: list?.color || '#6b7280',
         ...counts
       };
@@ -147,7 +148,7 @@ async function loadStats() {
           <div class="stats-list-item">
             <div class="stats-list-item-label">
               <span class="stats-list-item-dot" style="background:${s.color}"></span>
-              ${s.name}
+              ${escapeHtml(s.emoji)} ${escapeHtml(s.name)}
             </div>
             <div class="stats-list-item-value">${s.completed}/${s.total}</div>
           </div>

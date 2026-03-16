@@ -5,6 +5,7 @@
 import { state, setState, subscribe, subscribeMultiple } from '../store.js';
 import { icon, escapeHtml } from '../utils/icons.js';
 import { toggleTheme, getCurrentTheme } from '../utils/theme.js';
+import { stripRichText } from '../utils/richText.js';
 
 const VIEW_TITLES = {
   inbox: { title: 'Caixa de Entrada', emoji: '📥' },
@@ -43,13 +44,27 @@ function renderHeader() {
 
   if (!viewInfo) viewInfo = { title: '', emoji: '' };
 
+  const normalizedQuery = (state.searchQuery || '').trim().toLowerCase();
+  const matchesSearch = (task) => {
+    if (!normalizedQuery) return true;
+    return task.title.toLowerCase().includes(normalizedQuery) ||
+      stripRichText(task.description || '').toLowerCase().includes(normalizedQuery) ||
+      (task.tags || []).some(tagId => {
+        const tag = state.tags.find(item => item.id === tagId);
+        return tag && tag.name.toLowerCase().includes(normalizedQuery);
+      });
+  };
+
   const taskCount = state.tasks.filter(t => {
     if (view === 'completed') return t.isCompleted;
     if (view.startsWith('tag:')) {
       const tagId = view.split(':')[1];
-      return !t.isCompleted && (t.tags || []).includes(tagId);
+      return !t.isCompleted && !t.isCanceled && (t.tags || []).includes(tagId);
     }
-    return !t.isCompleted;
+    if (view === 'search') {
+      return !t.isCompleted && !t.isCanceled && matchesSearch(t);
+    }
+    return !t.isCompleted && !t.isCanceled;
   }).length;
 
   // Show view switch (list <-> kanban) only when in a named list
@@ -63,7 +78,7 @@ function renderHeader() {
         ${icon('menu')}
       </button>
       <div class="main-header-title">
-        <span class="emoji">${viewInfo.emoji}</span>
+        <span class="emoji">${escapeHtml(viewInfo.emoji)}</span>
         <span>${escapeHtml(viewInfo.title)}</span>
         ${isTaskView ? `<span class="main-header-count">${taskCount}</span>` : ''}
       </div>

@@ -5,6 +5,7 @@
 import { state, setState, subscribe, subscribeMultiple } from '../store.js';
 import { icon, escapeHtml } from '../utils/icons.js';
 import { formatDate } from '../utils/date.js';
+import { stripRichText, truncateRichText } from '../utils/richText.js';
 
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -21,9 +22,10 @@ function highlight(text, query) {
 
 function scoreTask(task, query) {
   const q = query.toLowerCase();
+  const descriptionText = stripRichText(task.description || '');
   let score = 0;
   if (task.title.toLowerCase().includes(q)) score += 3;
-  if (task.description && task.description.toLowerCase().includes(q)) score += 1;
+  if (descriptionText && descriptionText.toLowerCase().includes(q)) score += 1;
   const taskTags = (task.tags || []).map(id => state.tags.find(t => t.id === id)).filter(Boolean);
   if (taskTags.some(t => t.name.toLowerCase().includes(q))) score += 2;
   return score;
@@ -104,11 +106,12 @@ function renderSearch() {
         ` : results.map(task => {
           const list = state.lists.find(l => l.id === task.listId);
           const taskTags = (task.tags || []).map(id => state.tags.find(t => t.id === id)).filter(Boolean);
+          const descriptionText = truncateRichText(task.description || '', 120);
           return `
             <div class="search-result-item" data-search-task-id="${task.id}">
               <div class="search-result-main">
                 <div class="search-result-title ${task.isCompleted ? 'completed-text' : ''}">${highlight(task.title, query)}</div>
-                ${task.description ? `<div class="search-result-desc">${highlight(task.description.substring(0, 120), query)}${task.description.length > 120 ? '...' : ''}</div>` : ''}
+                ${descriptionText ? `<div class="search-result-desc">${highlight(descriptionText, query)}</div>` : ''}
               </div>
               <div class="search-result-meta">
                 ${list ? `
@@ -164,9 +167,11 @@ function bindSearchEvents() {
 
   // Overlay click outside to close
   const overlay = document.getElementById('search-overlay');
-  overlay?.addEventListener('click', (e) => {
-    if (e.target === overlay) closeSearch();
-  });
+  if (overlay) {
+    overlay.onclick = (e) => {
+      if (e.target === overlay) closeSearch();
+    };
+  }
 
   // Filter tabs
   document.querySelectorAll('[data-search-filter]').forEach(el => {
@@ -179,13 +184,23 @@ function bindSearchEvents() {
   document.querySelectorAll('[data-search-task-id]').forEach(el => {
     el.addEventListener('click', () => {
       const taskId = el.dataset.searchTaskId;
-      setState({ selectedTaskId: taskId, detailOpen: true, searchOpen: false, searchQuery: '' });
+      setState({
+        selectedTaskId: taskId,
+        detailOpen: true,
+        searchOpen: false,
+        searchQuery: '',
+        currentView: state.currentView === 'search' ? (state.searchReturnView || 'inbox') : state.currentView
+      });
     });
   });
 }
 
 function closeSearch() {
-  setState({ searchOpen: false, searchQuery: '' });
+  setState({
+    searchOpen: false,
+    searchQuery: '',
+    currentView: state.currentView === 'search' ? (state.searchReturnView || 'inbox') : state.currentView
+  });
 }
 
 function initSearch() {

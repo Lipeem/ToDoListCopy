@@ -3,9 +3,10 @@
 // ============================================
 
 import { state, setState, subscribe } from '../store.js';
-import { dbAdd, dbUpdate, dbGetAll, dbDelete } from '../db.js';
+import { dbAdd, dbUpdate, dbBulkUpdate, dbGetAll, dbDelete } from '../db.js';
 import { icon, escapeHtml } from '../utils/icons.js';
 import { extractNaturalDate } from '../utils/date.js';
+import { bindRichTextEditor, renderRichTextEditor } from '../utils/richText.js';
 
 const COLORS = [
   '#4772fa', '#ff4d4f', '#ff8c22', '#faad14', '#52c41a',
@@ -16,6 +17,12 @@ const COLORS = [
 ];
 
 const EMOJIS = ['📋', '⭐', '🏠', '💼', '🎓', '💪', '🎨', '🎵', '📚', '🛒', '✈️', '🎯', '💡', '🔧', '❤️', '🌿', '🍕', '🎮', '📱', '🚀'];
+
+function getNextTaskSortOrder(listId) {
+  return state.tasks
+    .filter(t => t.listId === listId)
+    .reduce((max, task) => Math.max(max, task.sortOrder ?? -1), -1) + 1;
+}
 
 function renderModal() {
   const overlay = document.getElementById('modal-overlay');
@@ -119,7 +126,7 @@ function renderListModal() {
         <select class="select" id="modal-list-folder">
           <option value="">Nenhuma</option>
           ${state.folders.map(f => `
-            <option value="${f.id}" ${list?.folderId === f.id ? 'selected' : ''}>${f.name}</option>
+            <option value="${f.id}" ${list?.folderId === f.id ? 'selected' : ''}>${escapeHtml(f.name)}</option>
           `).join('')}
         </select>
       </div>
@@ -164,6 +171,8 @@ function renderFolderModal() {
 }
 
 function renderTaskModal() {
+  const selectedListId = state.modalData?.listId || state.currentListId || 'inbox';
+
   return `
     <div class="modal-header">
       <span class="modal-title">Nova Tarefa</span>
@@ -176,14 +185,20 @@ function renderTaskModal() {
       </div>
       <div class="form-group">
         <label class="form-label">Descrição</label>
-        <textarea class="textarea" id="modal-task-desc" placeholder="Adicionar detalhes..." rows="3"></textarea>
+        <div id="modal-task-desc-root">
+          ${renderRichTextEditor({
+            value: '',
+            placeholder: 'Adicionar detalhes...',
+            allowExpand: true
+          })}
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
         <div class="form-group">
           <label class="form-label">Lista</label>
           <select class="select" id="modal-task-list">
             ${state.lists.map(l => `
-              <option value="${l.id}" ${l.id === state.currentListId ? 'selected' : ''}>${l.emoji || ''} ${l.name}</option>
+              <option value="${l.id}" ${l.id === selectedListId ? 'selected' : ''}>${escapeHtml(l.emoji || '')} ${escapeHtml(l.name)}</option>
             `).join('')}
           </select>
         </div>
@@ -211,7 +226,7 @@ function renderTaskModal() {
           ${state.tags.map(t => `
             <span class="tag" data-modal-tag="${t.id}">
               <span class="tag-dot" style="background:${t.color}"></span>
-              ${t.name}
+              ${escapeHtml(t.name)}
             </span>
           `).join('')}
         </div>
@@ -384,6 +399,7 @@ function bindModalEvents() {
   let selectedTags = [];
   let selectedPriority = 0;
   let selectedHabitDays = [];
+  let taskDescriptionEditor = null;
 
   // Pre-fill selections from existing data
   if (state.modalOpen === 'editList' && state.modalData) {
@@ -403,9 +419,9 @@ function bindModalEvents() {
   }
 
   // Close
-  overlay.addEventListener('click', (e) => {
+  overlay.onclick = (e) => {
     if (e.target === overlay) closeModal();
-  });
+  };
   overlay.querySelectorAll('.modal-close').forEach(el => {
     el.addEventListener('click', closeModal);
   });
@@ -481,7 +497,7 @@ function bindModalEvents() {
           completedAt: null,
           isRecurring: false,
           recurRule: null,
-          sortOrder: state.tasks.length
+          sortOrder: getNextTaskSortOrder('inbox')
         };
 
         await dbAdd('tasks', newTask);
@@ -525,14 +541,21 @@ function bindModalEvents() {
     });
   });
 
+  if (state.modalOpen === 'addTask') {
+    taskDescriptionEditor = bindRichTextEditor(document.getElementById('modal-task-desc-root'), {
+      initialValue: '',
+      onChange: () => {},
+      onSave: async () => {}
+    });
+  }
+
   // Delete
   document.getElementById('modal-delete')?.addEventListener('click', async () => {
     if (state.modalOpen === 'editList' && state.modalData) {
-      const tasks = state.tasks.filter(t => t.listId === state.modalData.id);
-      for (const task of tasks) {
-        task.listId = 'inbox';
-        await dbUpdate('tasks', task);
-      }
+      const tasks = state.tasks
+        .filter(t => t.listId === state.modalData.id)
+        .map(task => ({ ...task, listId: 'inbox' }));
+      await dbBulkUpdate('tasks', tasks);
       await dbDelete('lists', state.modalData.id);
       setState({
         lists: await dbGetAll('lists'),
@@ -545,12 +568,10 @@ function bindModalEvents() {
       setState({ habits: await dbGetAll('habits') });
     } else if (state.modalOpen === 'editTag' && state.modalData) {
       const tagId = state.modalData.id;
-      // Remove tag from all tasks that reference it
-      const tasksWithTag = state.tasks.filter(t => (t.tags || []).includes(tagId));
-      for (const task of tasksWithTag) {
-        task.tags = task.tags.filter(id => id !== tagId);
-        await dbUpdate('tasks', task);
-      }
+      const tasksWithTag = state.tasks
+        .filter(t => (t.tags || []).includes(tagId))
+        .map(task => ({ ...task, tags: task.tags.filter(id => id !== tagId) }));
+      await dbBulkUpdate('tasks', tasksWithTag);
       await dbDelete('tags', tagId);
       setState({
         tags: await dbGetAll('tags'),
@@ -560,33 +581,29 @@ function bindModalEvents() {
     } else if (state.modalOpen === 'editKanbanColumn' && state.modalData) {
       const { listId, column } = state.modalData;
       if (listId === 'all') {
-        // Delete from all lists
-        for (const list of state.lists) {
-          if (list.kanbanColumns) {
-            list.kanbanColumns = list.kanbanColumns.filter(c => c.id !== column.id);
-            await dbUpdate('lists', list);
-          }
-        }
-        // Move affected tasks to 'todo'
-        const affectedTasks = state.tasks.filter(t => t.kanbanStatus === column.id);
-        for (const task of affectedTasks) {
-          task.kanbanStatus = 'todo';
-          await dbUpdate('tasks', task);
-        }
+        const updatedLists = state.lists.map(list => (
+          list.kanbanColumns
+            ? { ...list, kanbanColumns: list.kanbanColumns.filter(c => c.id !== column.id) }
+            : list
+        ));
+        const affectedTasks = state.tasks
+          .filter(t => t.kanbanStatus === column.id)
+          .map(task => ({ ...task, kanbanStatus: 'todo' }));
+        await dbBulkUpdate('lists', updatedLists);
+        await dbBulkUpdate('tasks', affectedTasks);
         setState({ lists: await dbGetAll('lists'), tasks: await dbGetAll('tasks') });
       } else {
         const list = state.lists.find(l => l.id === listId);
         if (list && list.kanbanColumns) {
-          list.kanbanColumns = list.kanbanColumns.filter(c => c.id !== column.id);
-
-          // Move tasks to default 'todo' column if their column is deleted
-          const tasks = state.tasks.filter(t => t.listId === listId && t.kanbanStatus === column.id);
-          for (const task of tasks) {
-            task.kanbanStatus = 'todo';
-            await dbUpdate('tasks', task);
-          }
-
-          await dbUpdate('lists', list);
+          const updatedList = {
+            ...list,
+            kanbanColumns: list.kanbanColumns.filter(c => c.id !== column.id)
+          };
+          const tasks = state.tasks
+            .filter(t => t.listId === listId && t.kanbanStatus === column.id)
+            .map(task => ({ ...task, kanbanStatus: 'todo' }));
+          await dbBulkUpdate('tasks', tasks);
+          await dbUpdate('lists', updatedList);
           setState({ lists: await dbGetAll('lists'), tasks: await dbGetAll('tasks') });
         }
       }
@@ -665,7 +682,7 @@ function bindModalEvents() {
       case 'addTask': {
         const title = document.getElementById('modal-task-title')?.value.trim();
         if (!title) return;
-        const desc = document.getElementById('modal-task-desc')?.value.trim() || '';
+        const desc = taskDescriptionEditor?.getValue() || '';
         const listId = document.getElementById('modal-task-list')?.value || 'inbox';
         const dueDate = document.getElementById('modal-task-date')?.value || null;
         const startTime = document.getElementById('modal-task-start-time')?.value || null;
@@ -686,7 +703,8 @@ function bindModalEvents() {
           completedAt: null,
           isRecurring: false,
           recurRule: null,
-          sortOrder: state.tasks.length
+          kanbanStatus: state.modalData?.kanbanStatus || null,
+          sortOrder: getNextTaskSortOrder(listId)
         });
         setState({ tasks: await dbGetAll('tasks') });
         break;
@@ -759,55 +777,64 @@ function bindModalEvents() {
             ? title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') + '-' + Date.now()
             : column.id;
 
-          for (const list of state.lists) {
-            if (!list.kanbanColumns) {
-              list.kanbanColumns = [
+          const updatedLists = state.lists.map(list => {
+            const nextList = {
+              ...list,
+              kanbanColumns: list.kanbanColumns ? list.kanbanColumns.map(col => ({ ...col })) : null
+            };
+            if (!nextList.kanbanColumns) {
+              nextList.kanbanColumns = [
                 { id: 'todo', title: 'A Fazer', color: '#6b7280', order: 0 },
                 { id: 'doing', title: 'Em Progresso', color: '#4772fa', order: 1 },
                 { id: 'done', title: 'Concluído', color: '#52c41a', order: 2 }
               ];
             }
             if (state.modalOpen === 'editKanbanColumn') {
-              const colIndex = list.kanbanColumns.findIndex(c => c.id === newId);
+              const colIndex = nextList.kanbanColumns.findIndex(c => c.id === newId);
               if (colIndex >= 0) {
-                list.kanbanColumns[colIndex].title = title;
-                list.kanbanColumns[colIndex].color = selectedColor;
+                nextList.kanbanColumns[colIndex].title = title;
+                nextList.kanbanColumns[colIndex].color = selectedColor;
               }
             } else {
               // Add new column if not already present
-              if (!list.kanbanColumns.find(c => c.id === newId)) {
-                list.kanbanColumns.push({
+              if (!nextList.kanbanColumns.find(c => c.id === newId)) {
+                nextList.kanbanColumns.push({
                   id: newId,
                   title,
                   color: selectedColor,
-                  order: list.kanbanColumns.length
+                  order: nextList.kanbanColumns.length
                 });
               }
             }
-            await dbUpdate('lists', list);
-          }
+            return nextList;
+          });
+          await dbBulkUpdate('lists', updatedLists);
         } else {
           const list = state.lists.find(l => l.id === listId);
           if (list) {
-            if (!list.kanbanColumns) {
-              list.kanbanColumns = [];
+            const updatedList = {
+              ...list,
+              kanbanColumns: list.kanbanColumns ? list.kanbanColumns.map(col => ({ ...col })) : []
+            };
+            if (!updatedList.kanbanColumns) {
+              updatedList.kanbanColumns = [];
             }
             if (state.modalOpen === 'editKanbanColumn') {
-              const colIndex = list.kanbanColumns.findIndex(c => c.id === column.id);
+              const colIndex = updatedList.kanbanColumns.findIndex(c => c.id === column.id);
               if (colIndex >= 0) {
-                list.kanbanColumns[colIndex].title = title;
-                list.kanbanColumns[colIndex].color = selectedColor;
+                updatedList.kanbanColumns[colIndex].title = title;
+                updatedList.kanbanColumns[colIndex].color = selectedColor;
               }
             } else {
               const newId = title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') + '-' + Date.now();
-              list.kanbanColumns.push({
+              updatedList.kanbanColumns.push({
                 id: newId,
                 title,
                 color: selectedColor,
-                order: list.kanbanColumns.length
+                order: updatedList.kanbanColumns.length
               });
             }
-            await dbUpdate('lists', list);
+            await dbUpdate('lists', updatedList);
           }
         }
         setState({ lists: await dbGetAll('lists') });

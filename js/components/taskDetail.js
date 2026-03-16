@@ -3,34 +3,10 @@
 // ============================================
 
 import { state, setState, subscribe } from '../store.js';
-import { dbUpdate, dbAdd, dbGetAll, dbGetByIndex } from '../db.js';
+import { dbUpdate, dbAdd, dbGetAll, dbGetByIndex, dbDelete } from '../db.js';
 import { icon, escapeHtml } from '../utils/icons.js';
 import { formatDate, addDays, today } from '../utils/date.js';
-
-// (Description mode toggle removed — always shows textarea)
-
-// Renders basic Markdown to safe HTML
-function renderMarkdown(text) {
-  if (!text) return '';
-  // Escape HTML first
-  let html = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  // Headings: ## Title
-  html = html.replace(/^##\s+(.+)$/gm, '<strong style="display:block;font-size:1.1em;margin:4px 0">$1</strong>');
-  // Bold: **text**
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Italic: *text*
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // Inline code: `code`
-  html = html.replace(/`(.+?)`/g, '<code style="background:var(--bg-tertiary);padding:0 4px;border-radius:3px;font-size:0.9em">$1</code>');
-  // List items: - item
-  html = html.replace(/^-\s+(.+)$/gm, '<div style="padding-left:12px">• $1</div>');
-  // Line breaks
-  html = html.replace(/\n/g, '<br>');
-  return html;
-}
+import { bindRichTextEditor, renderRichTextEditor } from '../utils/richText.js';
 
 function renderTaskDetail() {
   const panel = document.getElementById('detail-panel');
@@ -80,7 +56,13 @@ function renderTaskDetail() {
       <!-- Description -->
       <div class="detail-field">
         <div class="detail-field-label">${icon('description')} Descrição</div>
-        <textarea class="detail-desc-input" id="detail-desc" placeholder="Adicionar descrição...">${escapeHtml(task.description || '')}</textarea>
+        <div id="detail-desc-root">
+          ${renderRichTextEditor({
+            value: task.description || '',
+            placeholder: 'Adicionar descrição...',
+            allowExpand: true
+          })}
+        </div>
       </div>
 
       <!-- List -->
@@ -88,7 +70,7 @@ function renderTaskDetail() {
         <div class="detail-field-label">${icon('inbox')} Lista</div>
         <select class="select" id="detail-list" style="height:32px;font-size:var(--fs-sm)">
           ${state.lists.map(l => `
-            <option value="${l.id}" ${l.id === task.listId ? 'selected' : ''}>${l.emoji || ''} ${escapeHtml(l.name)}</option>
+            <option value="${l.id}" ${l.id === task.listId ? 'selected' : ''}>${escapeHtml(l.emoji || '')} ${escapeHtml(l.name)}</option>
           `).join('')}
         </select>
       </div>
@@ -267,21 +249,17 @@ function bindDetailEvents(task) {
     await saveTask(task);
   });
 
-  // Description: auto-grow + update in memory while typing, save to DB on blur
-  const descEl = document.getElementById('detail-desc');
-  if (descEl) {
-    descEl.style.height = 'auto';
-    descEl.style.height = descEl.scrollHeight + 'px';
-    descEl.addEventListener('input', (e) => {
-      task.description = e.target.value;
-      descEl.style.height = 'auto';
-      descEl.style.height = descEl.scrollHeight + 'px';
-    });
-    descEl.addEventListener('blur', async (e) => {
-      task.description = e.target.value;
+  // Description rich text editor
+  bindRichTextEditor(document.getElementById('detail-desc-root'), {
+    initialValue: task.description || '',
+    onChange: (html) => {
+      task.description = html;
+    },
+    onSave: async (html) => {
+      task.description = html;
       await saveTask(task);
-    });
-  }
+    }
+  });
 
   // List
   document.getElementById('detail-list')?.addEventListener('change', async (e) => {
@@ -354,8 +332,10 @@ function bindDetailEvents(task) {
   document.querySelectorAll('[data-subtask-toggle]').forEach(el => {
     el.addEventListener('click', async () => {
       const idx = parseInt(el.dataset.subtaskToggle);
-      task.subtasks[idx].completed = !task.subtasks[idx].completed;
-      await saveTask(task);
+      if (task.subtasks && idx >= 0 && idx < task.subtasks.length) {
+        task.subtasks[idx].completed = !task.subtasks[idx].completed;
+        await saveTask(task);
+      }
     });
   });
 
@@ -366,8 +346,10 @@ function bindDetailEvents(task) {
       clearTimeout(timeout);
       timeout = setTimeout(async () => {
         const idx = parseInt(el.dataset.subtaskEdit);
-        task.subtasks[idx].title = el.value;
-        await saveTask(task, false);
+        if (task.subtasks && idx >= 0 && idx < task.subtasks.length) {
+          task.subtasks[idx].title = el.value;
+          await saveTask(task, false);
+        }
       }, 500);
     });
   });
@@ -376,8 +358,10 @@ function bindDetailEvents(task) {
   document.querySelectorAll('[data-subtask-delete]').forEach(el => {
     el.addEventListener('click', async () => {
       const idx = parseInt(el.dataset.subtaskDelete);
-      task.subtasks.splice(idx, 1);
-      await saveTask(task);
+      if (task.subtasks && idx >= 0 && idx < task.subtasks.length) {
+        task.subtasks.splice(idx, 1);
+        await saveTask(task);
+      }
     });
   });
 
@@ -397,7 +381,6 @@ function bindDetailEvents(task) {
   // Delete task
   document.getElementById('detail-delete')?.addEventListener('click', async () => {
     if (confirm('Excluir esta tarefa?')) {
-      const { dbDelete, dbGetAll } = await import('../db.js');
       await dbDelete('tasks', task.id);
       const tasks = await dbGetAll('tasks');
       setState({ tasks, selectedTaskId: null, detailOpen: false });

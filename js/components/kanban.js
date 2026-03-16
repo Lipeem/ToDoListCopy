@@ -108,7 +108,7 @@ function renderKanban() {
           <option value="all" ${kanbanFilter === 'all' ? 'selected' : ''}>Todas as Listas</option>
           <option value="inbox" ${kanbanFilter === 'inbox' ? 'selected' : ''}>📥 Caixa de Entrada</option>
           ${state.lists.filter(l => !l.isDefault).map(l =>
-            `<option value="${l.id}" ${kanbanFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${l.name}</option>`
+            `<option value="${l.id}" ${kanbanFilter === l.id ? 'selected' : ''}>${escapeHtml(l.emoji || '📝')} ${escapeHtml(l.name)}</option>`
           ).join('')}
         </select>
       </div>
@@ -184,7 +184,7 @@ function renderKanbanCard(task) {
         ${list ? `
           <span class="task-item-list-name">
             <span class="task-item-list-dot" style="background:${list.color}"></span>
-            ${escapeHtml(list.name)}
+            ${escapeHtml(list.emoji || '')} ${escapeHtml(list.name)}
           </span>
         ` : ''}
         ${taskTags.map(t => `<span class="task-item-tag" style="background:${t.color}"></span>`).join('')}

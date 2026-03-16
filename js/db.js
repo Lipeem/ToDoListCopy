@@ -2,6 +2,8 @@
 // IndexedDB Database Layer
 // ============================================
 
+import { normalizeRichTextHtml } from './utils/richText.js';
+
 const DB_NAME = 'ticktick_clone';
 const DB_VERSION = 1;
 
@@ -104,6 +106,33 @@ async function dbUpdate(storeName, data) {
     const request = store.put(data);
     request.onsuccess = () => resolve(data);
     request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function dbBulkUpdate(storeName, items) {
+  await openDB();
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return [];
+  }
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const timestamp = new Date().toISOString();
+    const preparedItems = items.map(item => ({
+      ...item,
+      createdAt: item.createdAt || timestamp,
+      updatedAt: timestamp
+    }));
+
+    tx.oncomplete = () => resolve(preparedItems);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Bulk update aborted'));
+
+    for (const item of preparedItems) {
+      store.put(item);
+    }
   });
 }
 
@@ -239,7 +268,7 @@ function validateTask(item) {
   return {
     id: typeof item.id === 'string' ? item.id : generateId(),
     title: sanitizeStr(item.title || 'Sem título'),
-    description: sanitizeStr(typeof item.description === 'string' ? item.description : ''),
+    description: normalizeRichTextHtml(typeof item.description === 'string' ? item.description : ''),
     listId: typeof item.listId === 'string' ? item.listId : 'inbox',
     priority: [0,1,2,3].includes(item.priority) ? item.priority : 0,
     dueDate: isValidDate(item.dueDate) ? item.dueDate : null,
@@ -436,6 +465,6 @@ async function importData(jsonData) {
 
 export {
   openDB, generateId,
-  dbAdd, dbGet, dbGetAll, dbUpdate, dbDelete, dbGetByIndex, dbClear, dbCount,
+  dbAdd, dbGet, dbGetAll, dbUpdate, dbBulkUpdate, dbDelete, dbGetByIndex, dbClear, dbCount,
   getSetting, setSetting, seedDefaults, exportData, importData
 };

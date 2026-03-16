@@ -3,7 +3,7 @@
 // ============================================
 
 import { state, setState, subscribe, subscribeMultiple } from '../store.js';
-import { dbGetAll, dbAdd, dbUpdate, dbDelete, dbClear, exportData, importData } from '../db.js';
+import { dbGetAll, dbAdd, dbUpdate, dbBulkUpdate, dbDelete, dbClear, exportData, importData } from '../db.js';
 import { icon, escapeHtml } from '../utils/icons.js';
 import { isToday, isTomorrow, isWithinDays, isPast } from '../utils/date.js';
 
@@ -16,18 +16,22 @@ const SMART_LISTS = [
   { id: 'completed', name: 'Concluídas', icon: 'completed', color: '#52c41a' },
 ];
 
+function isOpenTask(task) {
+  return !task.isCompleted && !task.isCanceled;
+}
+
 function getSmartListCount(smartId, tasks) {
   switch (smartId) {
     case 'inbox':
-      return tasks.filter(t => t.listId === 'inbox' && !t.isCompleted).length;
+      return tasks.filter(t => t.listId === 'inbox' && isOpenTask(t)).length;
     case 'today':
-      return tasks.filter(t => !t.isCompleted && t.dueDate && isToday(t.dueDate)).length;
+      return tasks.filter(t => isOpenTask(t) && t.dueDate && (isToday(t.dueDate) || isPast(t.dueDate))).length;
     case 'tomorrow':
-      return tasks.filter(t => !t.isCompleted && t.dueDate && isTomorrow(t.dueDate)).length;
+      return tasks.filter(t => isOpenTask(t) && t.dueDate && isTomorrow(t.dueDate)).length;
     case 'week':
-      return tasks.filter(t => !t.isCompleted && t.dueDate && isWithinDays(t.dueDate, 7)).length;
+      return tasks.filter(t => isOpenTask(t) && t.dueDate && isWithinDays(t.dueDate, 7)).length;
     case 'all':
-      return tasks.filter(t => !t.isCompleted).length;
+      return tasks.filter(t => isOpenTask(t)).length;
     case 'completed':
       return tasks.filter(t => t.isCompleted).length;
     default:
@@ -36,7 +40,7 @@ function getSmartListCount(smartId, tasks) {
 }
 
 function getListCount(listId, tasks) {
-  return tasks.filter(t => t.listId === listId && !t.isCompleted).length;
+  return tasks.filter(t => t.listId === listId && isOpenTask(t)).length;
 }
 
 function renderSidebar() {
@@ -229,7 +233,21 @@ function bindSidebarEvents() {
 
   // Search
   document.getElementById('sidebar-search')?.addEventListener('input', (e) => {
-    setState({ searchQuery: e.target.value, currentView: e.target.value ? 'search' : state.currentView });
+    const query = e.target.value;
+
+    if (query) {
+      setState({
+        searchQuery: query,
+        searchReturnView: state.currentView === 'search' ? state.searchReturnView : state.currentView,
+        currentView: 'search'
+      });
+      return;
+    }
+
+    setState({
+      searchQuery: '',
+      currentView: state.currentView === 'search' ? (state.searchReturnView || 'inbox') : state.currentView
+    });
   });
 
   // Add list
@@ -445,12 +463,10 @@ function showListContextMenu(x, y, listId) {
       setState({ modalOpen: 'editList', modalData: list });
     } else if (action === 'delete') {
       if (confirm('Tem certeza que deseja excluir esta lista? As tarefas serão movidas para a Caixa de Entrada.')) {
-        // Move tasks to inbox
-        const tasks = state.tasks.filter(t => t.listId === listId);
-        for (const task of tasks) {
-          task.listId = 'inbox';
-          await dbUpdate('tasks', task);
-        }
+        const movedTasks = state.tasks
+          .filter(t => t.listId === listId)
+          .map(task => ({ ...task, listId: 'inbox' }));
+        await dbBulkUpdate('tasks', movedTasks);
         await dbDelete('lists', listId);
         const updatedLists = await dbGetAll('lists');
         const updatedTasks = await dbGetAll('tasks');
@@ -503,11 +519,10 @@ function showTagContextMenu(x, y, tagId) {
       setState({ modalOpen: 'editTag', modalData: tag });
     } else if (action === 'delete') {
       if (confirm(`Excluir a tag "${tag.name}"? Ela será removida de todas as tarefas.`)) {
-        const tasksWithTag = state.tasks.filter(t => (t.tags || []).includes(tagId));
-        for (const task of tasksWithTag) {
-          task.tags = task.tags.filter(id => id !== tagId);
-          await dbUpdate('tasks', task);
-        }
+        const tasksWithTag = state.tasks
+          .filter(t => (t.tags || []).includes(tagId))
+          .map(task => ({ ...task, tags: task.tags.filter(id => id !== tagId) }));
+        await dbBulkUpdate('tasks', tasksWithTag);
         await dbDelete('tags', tagId);
         const updatedState = {
           tags: await dbGetAll('tags'),

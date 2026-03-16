@@ -45,7 +45,7 @@ function renderEisenhower() {
           <option value="all" ${listFilter === 'all' ? 'selected' : ''}>Todas as Listas</option>
           <option value="inbox" ${listFilter === 'inbox' ? 'selected' : ''}>📥 Caixa de Entrada</option>
           ${state.lists.filter(l => !l.isDefault).map(l =>
-            `<option value="${l.id}" ${listFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${escapeHtml(l.name)}</option>`
+            `<option value="${l.id}" ${listFilter === l.id ? 'selected' : ''}>${escapeHtml(l.emoji || '📝')} ${escapeHtml(l.name)}</option>`
           ).join('')}
         </select>
       </div>
@@ -92,7 +92,7 @@ function renderEisenhowerCard(task, quadrantColor) {
       <div class="eisenhower-card-meta">
         ${task.dueDate ? `<span class="task-item-due ${getDateClass(task.dueDate)}">${icon('calendar')} ${formatDate(task.dueDate)}</span>` : ''}
         ${subtasks.length > 0 ? `<span>${icon('subtask')} ${completedSubs}/${subtasks.length}</span>` : ''}
-        ${list ? `<span><span class="task-item-list-dot" style="background:${list.color}"></span>${list.emoji || ''} ${escapeHtml(list.name)}</span>` : ''}
+        ${list ? `<span><span class="task-item-list-dot" style="background:${list.color}"></span>${escapeHtml(list.emoji || '')} ${escapeHtml(list.name)}</span>` : ''}
         ${taskTags.map(t => `<span class="task-item-tag" style="background:${t.color}"></span>`).join('')}
       </div>
     </div>

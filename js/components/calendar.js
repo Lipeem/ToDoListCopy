@@ -6,6 +6,7 @@ import { state, setState, subscribe, subscribeMultiple } from '../store.js';
 import { icon, escapeHtml } from '../utils/icons.js';
 import { MONTHS_PT, DAYS_SHORT_PT, getCalendarDays, isSameDay, isToday, formatDate, addDays } from '../utils/date.js';
 import { dbUpdate, dbGetAll } from '../db.js';
+import { truncateRichText } from '../utils/richText.js';
 
 function filterByList(task, filter) {
   if (filter === 'all') return true;
@@ -18,7 +19,7 @@ function renderListFilterSelect(filterId, currentFilter) {
       <option value="all" ${currentFilter === 'all' ? 'selected' : ''}>Todas as Listas</option>
       <option value="inbox" ${currentFilter === 'inbox' ? 'selected' : ''}>📥 Caixa de Entrada</option>
       ${state.lists.filter(l => !l.isDefault).map(l =>
-        `<option value="${l.id}" ${currentFilter === l.id ? 'selected' : ''}>${l.emoji || '📝'} ${escapeHtml(l.name)}</option>`
+        `<option value="${l.id}" ${currentFilter === l.id ? 'selected' : ''}>${escapeHtml(l.emoji || '📝')} ${escapeHtml(l.name)}</option>`
       ).join('')}
     </select>
   `;
@@ -98,8 +99,9 @@ function renderMonthView(year, month, listFilter, tagFilter) {
                 const color = (!list || list.id === 'inbox') ? '#6b7280' : list.color;
                 const taskTags = (t.tags || []).map(id => state.tags.find(tg => tg.id === id)).filter(Boolean);
                 const tagDots = taskTags.map(tg => `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${tg.color};margin-left:2px;flex-shrink:0"></span>`).join('');
-                const descIcon = t.description ? '<span style="opacity:0.6;font-size:9px;margin-left:2px">💬</span>' : '';
-                return `<div class="calendar-task" title="${escapeHtml(t.description ? t.description.slice(0,80) : '')}" style="background:${color}22;color:${color};display:flex;align-items:center;gap:0" data-task-id="${t.id}">
+                const descriptionText = truncateRichText(t.description || '', 80);
+                const descIcon = descriptionText ? '<span style="opacity:0.6;font-size:9px;margin-left:2px">💬</span>' : '';
+                return `<div class="calendar-task" title="${escapeHtml(descriptionText)}" style="background:${color}22;color:${color};display:flex;align-items:center;gap:0" data-task-id="${t.id}">
                   <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</span>
                   ${tagDots}${descIcon}
                 </div>`;

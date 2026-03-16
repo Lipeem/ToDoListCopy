@@ -9,7 +9,7 @@ const cssFiles = [
   'css/variables.css', 'css/base.css', 'css/layout.css', 'css/components.css',
   'css/task.css', 'css/calendar.css', 'css/kanban.css', 'css/pomodoro.css',
   'css/habits.css', 'css/stats.css', 'css/eisenhower.css',
-  'css/search.css', 'css/floating.css'
+  'css/search.css', 'css/floating.css', 'css/ux.css'
 ];
 
 let allCSS = '';
@@ -20,6 +20,7 @@ for (const f of cssFiles) {
 // Read all JS files in dependency order and strip import/export statements
 const jsFiles = [
   'js/utils/icons.js',
+  'js/utils/richText.js',
   'js/utils/date.js',
   'js/db.js',
   'js/store.js',
@@ -80,7 +81,7 @@ ${allCSS}
       border: 3px solid var(--border-color); border-top-color: var(--primary);
       border-radius: 50%; animation: spin 0.8s linear infinite;
     }
-    .loading-text { font-family: 'Inter', sans-serif; font-size: 14px; color: var(--text-tertiary); }
+    .loading-text { font-family: var(--font-family); font-size: 14px; color: var(--text-tertiary); }
     .icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .icon svg { width: 1em; height: 1em; }
   </style>

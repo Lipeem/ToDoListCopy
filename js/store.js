@@ -6,6 +6,7 @@ const state = {
   // Navigation
   currentView: 'inbox',       // inbox | today | tomorrow | week | all | completed | list:<id> | calendar | kanban | pomodoro | habits | stats
   currentListId: 'inbox',
+  searchReturnView: 'inbox',
   selectedTaskId: null,
   detailOpen: false,
   sidebarOpen: true,

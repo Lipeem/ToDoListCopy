@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "taskflow",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["serve.js"],
+      "port": 3456
+    }
+  ]
+}

@@ -77,7 +77,7 @@ function renderPomodoro() {
                   const list = state.lists.find(l => l.id === t.listId);
                   return `<div class="context-menu-item" data-pom-task-select="${t.id}" style="cursor:pointer;display:flex;flex-direction:column;gap:2px;">
                     <span style="font-size:var(--fs-sm);font-weight:var(--fw-medium)">${escapeHtml(t.title)}</span>
-                    ${list ? `<span style="font-size:var(--fs-xs);color:var(--text-tertiary)">${list.emoji || ''} ${escapeHtml(list.name)}</span>` : ''}
+                    ${list ? `<span style="font-size:var(--fs-xs);color:var(--text-tertiary)">${escapeHtml(list.emoji || '')} ${escapeHtml(list.name)}</span>` : ''}
                   </div>`;
                 }).join('')}
               </div>
